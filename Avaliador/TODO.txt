@@ -1,0 +1,9 @@
+TODO:
+1- Terminar integração do projeto
+2- Adicionar a biblioteca custom para fazer a leitura dos arquivos e transformar em uma lista de labels
+3- Fazer o sistema de comparação entre as duas listas
+4- Fazer o sistema de output de Detecção e em seguida o de Localização
+5- Fazer o sistema de Classificação 
+6- Organizar o meio de output com um pasta especifica para cada versão e uma grande pasta salvando as versões de teste
+7- Criar um sistema para salvar os resultados em um JSON acessavel
+8- Integrar um modo que gere automaticamente graficos comparando o desempenho de todas as versões salvas
