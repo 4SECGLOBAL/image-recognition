@@ -4,7 +4,7 @@ Essa ferramenta permite fazer o download de um número determinado de imagens da
 
 ## Requirements
 
-Para utilizar esse software, você deve utilizar have Python 3.8 ou superior. Utiliza-se ambientes virtuais de Python para evitar conflito de dependencias no sistema. Instalar *virtualenv* com:
+Para utilizar esse software, você deve utilizar Python 3.8 ou superior. Utiliza-se ambientes virtuais de Python para evitar conflito de dependencias no sistema. Instalar *virtualenv* com:
 
 ```bash
 pip install virtualenv
