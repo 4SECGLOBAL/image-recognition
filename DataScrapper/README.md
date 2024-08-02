@@ -1,4 +1,4 @@
-# Data Scrapper
+# DataScrapper
 
 Essa ferramenta permite fazer o download de um número determinado de imagens da web a partir de termos de busca avulsos ou, principalmente, listados em arquivos .txt. Utiliza como submódulo o repositório mantido pela [Ultralytics](https://github.com/ultralytics/google-images-download), que é baseado no trabalho de [hardikvasa](https://github.com/hardikvasa/google-images-download).
 
@@ -36,15 +36,15 @@ Para utilizar o DataScrapper, deve-se seguir os seguintes passos:
 
 2. Faça o download do chromedriver correspondente à versão do seu Chrome e do seu sistema operacional (disponível [aqui](https://chromedriver.chromium.org/)) e o coloque neste diretório.
 
-3. Execute o script determinando o caminho do arquivo de texto com os termos de busca desejados e o limite de imagens para download:
+3. Execute o script determinando o caminho do arquivo de texto com os termos de busca desejados e o limite de imagens para download, nessa ordem:
 
-### Windows
+#### Windows
 
 ```
 .\execute.bat .\lista_chaves\Arma.txt 50
 ```
 
-### Linux
+#### Linux
 
 ```
 ./execute.sh ./lista_chaves/Arma.txt 50
