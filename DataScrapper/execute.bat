@@ -22,7 +22,7 @@ rem Loop through each line in the specified file
 for /f "delims=" %%i in (%filename%) do (
     set search_term=%%i
     echo Running command for: !search_term! with limit %limit%
-    .\venv\Scripts\python.exe bing_scraper.py --search "!search_term!" --limit %limit% --download --chromedriver .\chromedriver.exe
+    .\venv\Scripts\python.exe .\google-images-download\bing_scraper.py --search "!search_term!" --limit %limit% --download --chromedriver .\chromedriver.exe
 )
 
 endlocal

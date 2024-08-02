@@ -13,5 +13,5 @@ limit=$2
 # Loop through each line in the specified file
 while IFS= read -r search_term; do
   echo "Running command for: $search_term with limit $limit"
-  ./venv/bin/python bing_scraper.py --search "$search_term" --limit $limit --download --chromedriver ./chromedriver.exe
+  ./venv/bin/python ./google-images-download/bing_scraper.py --search "$search_term" --limit $limit --download --chromedriver ./chromedriver.exe
 done < "$filename"

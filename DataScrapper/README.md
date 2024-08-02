@@ -1,6 +1,12 @@
 ## Requirements
 
-Para utilizar esse software, você deve utilizar  have Python 3.8 ou superior. Dependencias podem ser instaladas da seguinte maneira:
+Para utilizar esse software, você deve utilizar have Python 3.8 ou superior. Utiliza-se ambientes virtuais de Python para evitar conflito de dependencias no sistema. Instalar *virtualenv* com:
+
+```bash
+pip install virtualenv
+```
+
+Dependencias podem ser instaladas da seguinte maneira:
 
 ### Windows
 ```bash
@@ -31,13 +37,13 @@ Para utilizar o DataScrapper, deve-se seguir os seguintes passos:
 ### Windows
 
 ```
-execute.bat .\lista_chaves\Arma.txt 50
+.\execute.bat .\lista_chaves\Arma.txt 50
 ```
 
 ### Linux
 
 ```
-execute.sh ./lista_chaves/Arma.txt 50
+./execute.sh ./lista_chaves/Arma.txt 50
 ```
 
 ### Termo de busca único
