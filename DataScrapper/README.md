@@ -1,3 +1,7 @@
+# Data Scrapper
+
+Essa ferramenta permite fazer o download de um número determinado de imagens da web a partir de termos de busca avulsos ou, principalmente, listados em arquivos .txt. Utiliza como submódulo o repositório mantido pela [Ultralytics](https://github.com/ultralytics/google-images-download), que é baseado no trabalho de [hardikvasa](https://github.com/hardikvasa/google-images-download).
+
 ## Requirements
 
 Para utilizar esse software, você deve utilizar have Python 3.8 ou superior. Utiliza-se ambientes virtuais de Python para evitar conflito de dependencias no sistema. Instalar *virtualenv* com:
@@ -79,53 +83,3 @@ Exemplo para um único termo de busca:
 source /venv/bin/activate
 $ python bing_scraper.py --search 'honeybees on flowers' --limit 10 --download --chromedriver ../chromedriver
 ```
-
-## 📜 Citing the Project
-
-To acknowledge the use of this software in your works, please reference the original repository, which can be found [here](https://github.com/hardikvasa/google-images-download).
-## 📋 Requirements
-
-To use this software, ensure you have Python 3.8 or later and all the necessary dependencies installed. Dependencies can be installed by running the following command in your terminal:
-
-```bash
-$ pip install -r requirements.txt
-```
-
-The `requirements.txt` file is located [here](https://github.com/ultralytics/google-images-download/blob/main/requirements.txt), which includes `selenium` among others.
-
-## ⚙️ Installation
-
-To set up the image scraper on your machine, clone this repository and install the dependencies as shown below:
-
-```bash
-$ git clone https://github.com/ultralytics/google-images-download
-$ cd google-images-download
-$ pip install -r requirements.txt
-```
-
-## 🖥️ How to Run
-
-Run the image scraper following these steps:
-
-1. Ensure Google Chrome is installed on your machine. If not, download and install from [here](https://www.google.com/chrome/).
-
-2. Download and update chromedriver corresponding to your version of Chrome [here](https://chromedriver.chromium.org/).
-
-3. Execute the script. Use the `--url` parameter to download images from a specific Bing URL or the `--search` parameter for Bing search terms. By default, the images will be saved in the `./images` directory. Note that any images that cause errors will be skipped during the download process.
-
-Example usage to download images using a URL:
-
-```bash
-$ python3 bing_scraper.py --url 'https://www.bing.com/images/search?q=flowers' --limit 10 --download --chromedriver /path/to/your/chromedriver
-```
-
-Example usage to download images using search terms:
-
-```bash
-$ python3 bing_scraper.py --search 'honeybees on flowers' --limit 10 --download --chromedriver /path/to/your/chromedriver
-
-# Expect output logs showing the download process and any errors encountered.
-```
-## 📜 Citing the Project
-
-To acknowledge the use of this software in your works, please reference the original repository, which can be found [here](https://github.com/hardikvasa/google-images-download).
