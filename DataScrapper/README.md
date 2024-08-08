@@ -14,6 +14,9 @@ Dependencias podem ser instaladas da seguinte maneira:
 
 ### Windows
 ```bash
+# Atualizar os arquivos do repositório google-images-download
+git pull --recurse-submodules
+# Instalar os requirements de python
 python -m virtualenv venv
 .\venv\Scripts\activate
 pip install -r .\google-images-download\requirements.txt
@@ -21,6 +24,9 @@ pip install -r .\google-images-download\requirements.txt
 
 ### Linux
 ```bash
+# Atualizar os arquivos do repositório google-images-download
+git pull --recurse-submodules
+# Instalar os requirements de python
 python3 -m virtualenv venv
 source ./venv/bin/activate
 pip install -r ./google-images-download/requirements.txt
