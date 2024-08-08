@@ -9,7 +9,7 @@ def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None):
     """
     Anota automaticamente imagens usando um modelo de detecção em imagens YOLO.
 
-    Essa função processa todas as imagens em um determinado diretório e detecta objetos usando o modelo YOLO. A anotação resultante é salva como um aquivo de texto para cada imagem, no formato [xi yi xf yf] normalizado.
+    Essa função processa todas as imagens em um determinado diretório e detecta objetos usando o modelo YOLO. A anotação resultante é salva como um aquivo de texto para cada imagem, no formato [xi yi width height] normalizado.
     
     Args:
         data (str): Caminho para a pasta com as imagens a ser anotadas.
@@ -24,7 +24,7 @@ def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None):
     Notas:
         - A funcao cria um novo diretorio para saida caso nao for especificado.
         - Resultados de anotacao sao salvos como arquivos de texto com o mesmo nome do arquivo de imagem.
-        - Cada linha no arquivo de texto de saida representa um objeto detectado com o ID da sua classe e os pontos da bounding box, no formato [xi yi xf yf] normalizado com o tamanho da imagem.
+        - Cada linha no arquivo de texto de saida representa um objeto detectado com o ID da sua classe e os pontos da bounding box, no formato [xi yi width height] normalizado com o tamanho da imagem.
     """
     det_model = YOLO(det_model)
 
@@ -41,7 +41,7 @@ def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None):
     for result in det_results:
         class_ids = result.boxes.cls.int().tolist()  # noqa
         if len(class_ids):
-            boxes = result.boxes.xyxyn  # Bounding Boxes de uma imagem em formato xyxy normalizado
+            boxes = result.boxes.xywhn  # Bounding Boxes de uma imagem em formato xywh normalizado
 
             with open(f"{Path(output_dir) / Path(result.path).stem}.txt", "w") as f:
                 # Escreve cada bounding box em uma nova linha do arquivo de texto
