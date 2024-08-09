@@ -1,17 +1,17 @@
 #!/bin/bash
 
-# Check if enough arguments are provided
+# Verifica se há todos os argumentos necessários passados
 if [ $# -lt 2 ]; then
-  echo "Usage: $0 filename limit"
+  echo "Como usar: $0 filename limit"
   exit 1
 fi
 
-# Get the filename and limit from the command-line arguments
+# Obtem os dados de filename e limit a partir dos argumentos
 filename=$1
 limit=$2
 
-# Loop through each line in the specified file
+# Itera por cada linha no arquivo txt e realiza o scrap com cada termo de busca
 while IFS= read -r search_term; do
-  echo "Running command for: $search_term with limit $limit"
+  echo  "Baixando imagens para o termo: $search_term com limite de $limit imagens"
   ./venv/bin/python ./google-images-download/bing_scraper.py --search "$search_term" --limit $limit --download --chromedriver ./chromedriver.exe
 done < "$filename"

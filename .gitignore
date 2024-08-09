@@ -2,3 +2,6 @@ DataScrapper/images
 DataScrapper/chromedriver.exe
 DataScrapper/venv
 AutoAnotador/venv
+Biblioteca/venv
+Biblioteca/biblioteca_vis/__pycache__
+Biblioteca/biblioteca_vis/Scripts/__pycache__
