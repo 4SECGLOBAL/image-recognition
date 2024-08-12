@@ -17,12 +17,9 @@ def hashd(img, hash_size = 9):
     # (v = 1; f = 0) retornando um int
     return sum([2 ** i for (i, v) in enumerate(dif.flatten()) if v])
 
-
-
-
 def RemoverDuplicata(_path_pasta, RANGE_DE_DIMENSAO_PARA_HASH = range(5,7)):
     contador = 0
-    #Passa o hash com redimensionamento de imagen entre 4-7 pra abranger maior numero de imagens copiadas
+    #Passa o hash com redimencionamento de imagen entre 4-7 pra abranger maior numero de imagens copiadas
     for sizeHASH in RANGE_DE_DIMENSAO_PARA_HASH:
         bar = Bar('Processando Hashes '+str(sizeHASH), fill='@', suffix='%(percent)d%%', max=len(os.listdir(_path_pasta)))
         haystack = {}

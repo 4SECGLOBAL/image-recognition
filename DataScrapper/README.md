@@ -42,19 +42,21 @@ Para utilizar o DataScrapper, deve-se seguir os seguintes passos:
 
 2. Faça o download do chromedriver correspondente à versão do seu Chrome e do seu sistema operacional (disponível [aqui](https://chromedriver.chromium.org/)) e o coloque neste diretório.
 
-3. Execute o script determinando o caminho do arquivo de texto com os termos de busca desejados e o limite de imagens para download, nessa ordem, e as imagens serão baixadas em `./images/<termo de busca>`:
+3. Execute o script determinando o caminho do arquivo de texto com os termos de busca desejados e o limite de imagens para download, nessa ordem, e as imagens serão baixadas em `./images/<termo de busca>`. O argumento `-join` é opcional e resulta em uma pasta com todas as imagens resultantes do arquivo de termos no mesmo diretório, caso não utilizada, as imagens são separadas em pastas nomeadas pelo termo da busca utilizada:
 
 #### Windows
 
 ```
-.\execute.bat .\lista_chaves\Arma.txt 50
+.\execute.bat .\lista_chaves\Arma.txt 50 -join
 ```
 
 #### Linux
 
 ```
-./execute.sh ./lista_chaves/Arma.txt 50
+./execute.sh ./lista_chaves/Arma.txt 50 -join
 ```
+
+**OBS**: ``-join`` é opcional
 
 ### Adicionar arquivos de termos de busca
 Para utilizar novas listagens de termos de busca, basta criar um novo arquivo .txt na pasta `./listas_termos` com cada termo de busca presente em uma nova linha do arquivo. Como por exemplo:
