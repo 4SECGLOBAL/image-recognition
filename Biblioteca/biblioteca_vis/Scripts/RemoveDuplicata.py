@@ -26,13 +26,18 @@ def RemoverDuplicata(_path_pasta, RANGE_DE_DIMENSAO_PARA_HASH = range(5,7)):
         for x in os.listdir(_path_pasta):
             _path_img = os.path.join(_path_pasta, x)
             if os.path.isfile(_path_img):
-                image = cv2.imread(_path_img)
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-                xHash = hashd(image, hash_size=sizeHASH)
-                
-                l = haystack.get(xHash, [])
-                l.append(_path_img)
-                haystack[xHash] = l
+                try:
+                    image = cv2.imread(_path_img)
+                    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+               
+                    xHash = hashd(image, hash_size=sizeHASH)
+                    
+                    l = haystack.get(xHash, [])
+                    l.append(_path_img)
+                    haystack[xHash] = l
+                except:
+                    os.remove(_path_img)
+                    print(f"\nErro na imagem no caminho {_path_img}. Imagem deletada.")
             bar.next()
         bar.finish()
         for key in haystack:
