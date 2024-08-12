@@ -25,7 +25,7 @@ def TransformaTipoImagens(path_imgs, ALTURA_FIXA = 480):
     #
     for imagem_path in lista_dir_imgs:
         imagem , novo_nome = grl1.transformarTipoImagem(imagem_path)
-        imagem = grl1.redimencionarImagem(imagem, ALTURA=ALTURA_FIXA)
+        imagem = grl1.redimensionarImagem(imagem, ALTURA=ALTURA_FIXA)
         save_path = os.path.join(os.path.dirname(imagem_path), novo_nome)
         imagem.save(save_path, "JPEG")
         imagem.close()

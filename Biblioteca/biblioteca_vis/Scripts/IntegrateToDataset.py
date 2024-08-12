@@ -1,13 +1,13 @@
 import os
 import shutil
 from progress.bar import Bar
-from Scripts.EconrporarDataset import *
+from Biblioteca.biblioteca_vis.Scripts.IncorporarDataset import *
 
 
 def IntegrarDataset(path_dataset_original, path_integrar):
     if ChecarSeDataset(path_integrar):
         #Caso o diretorio dado já seja a pasta com o dataset
-        EncorporaDataset(path_integrar, path_dataset_original)
+        IncorporaDataset(path_integrar, path_dataset_original)
     else:
         #Caso o diretorio seja uma pasta com diversos datasets       
         for arquivo in os.listdir(path_integrar):
@@ -15,7 +15,7 @@ def IntegrarDataset(path_dataset_original, path_integrar):
             if os.path.isdir(path_arquivo):
                 if ChecarSeDataset(path_arquivo):
                     #Aqui garante que a pasta "nested" representa um dataset
-                    EncorporaDataset(path_arquivo, path_dataset_original)
+                    IncorporaDataset(path_arquivo, path_dataset_original)
                 else:
                     # Neste caso, caso não seja, busca se existe algum dataset "nesteado" dentro da pasta
                     IntegrarDataset(path_dataset_original, path_arquivo)

@@ -14,3 +14,7 @@ Para futuras modificações\atualizações do projeto,deve-se usar o codigo:
 "python setup.py bdist_wheel"
 para atualizações, lembrar de mudar o setup.py e elevar a versão
 ex: versão atual = 0.1.0 ; versão update 1 = 0.1.1
+
+#  Ferramentas
+
+- RemoveDuplicata.py: remove imagens duplicadas em um diretorio

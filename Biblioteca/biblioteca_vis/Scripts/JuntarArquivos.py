@@ -43,7 +43,7 @@ def JuntarTodosArquivos(path_arquivos1, path_arquivos2, path_novos_arquivos):
 
 if __name__ == "__main__":
     ##  PARSER
-    ap = argparse.ArgumentParser(description="Redimenciona todas as imagens de uma pasta para uma altura padrão")
+    ap = argparse.ArgumentParser(description="redimensiona todas as imagens de uma pasta para uma altura padrão")
     ap.add_argument("-p", "--Path", required=False,default=' ',
         help="Caminho da pasta em que as imagens estão localizadas")
     ap.add_argument("-a", "--AlturaFixa", required=False,default=' ',
@@ -63,4 +63,4 @@ if __name__ == "__main__":
     else:
         AlturaFixa = int(args.Path)
 
-    #RedimencionarImagens(_Path, ALTURA_FIXA=AlturaFixa)
+    #redimensionarImagens(_Path, ALTURA_FIXA=AlturaFixa)

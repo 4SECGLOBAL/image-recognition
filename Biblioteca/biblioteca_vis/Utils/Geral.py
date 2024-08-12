@@ -9,9 +9,9 @@ from biblioteca_vis.Utils.Classes import *
 ##          FUNÇÕES
 ##
 
-## FUNÇÃO DE REDIMENCIONAMENTO DE IMAGENS
-# Redimenciona a imagem mantendo o Aspect Ratio da mesma
-def redimencionarImagem(imagem, ALTURA = 640):
+## FUNÇÃO DE redimensioNAMENTO DE IMAGENS
+# redimensiona a imagem mantendo o Aspect Ratio da mesma
+def redimensionarImagem(imagem, ALTURA = 640):
     if(imagem.size[1] != ALTURA):
         imagem = imagem.resize((int((imagem.size[0]/imagem.size[1])*ALTURA),ALTURA))
     return imagem

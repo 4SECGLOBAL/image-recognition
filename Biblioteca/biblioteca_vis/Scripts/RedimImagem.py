@@ -1,6 +1,6 @@
 ##
 ##
-##      Script para redimencionar todas as imagens de uma pasta para uma
+##      Script para redimensionar todas as imagens de uma pasta para uma
 ##          altura padrão
 ##
 
@@ -11,7 +11,7 @@ from PIL import Image
 
 ##  PARTE DO MAIN
 #Função principal
-def RedimencionarImagens(path_imgs, ALTURA_FIXA=640, FORMATO_FINAL = 'JPEG'):
+def redimensionarImagens(path_imgs, ALTURA_FIXA=640, FORMATO_FINAL = 'JPEG'):
     #Gera uma lista com o path das imagens
     lista_extensoes = ['png','jpg','jpeg']
     lista_dir_imgs = Utils.Geral.ler_arquivos_de_um_diretorio(path_imgs,
@@ -19,11 +19,11 @@ def RedimencionarImagens(path_imgs, ALTURA_FIXA=640, FORMATO_FINAL = 'JPEG'):
                                                                 MANTER_PATH_COMPLETO=True,
                                                                 PASSAR_EXTENSOES_ESPECIFICAS=lista_extensoes)
 
-    bar = Bar('Redimencionando', fill='#', max = (len(lista_dir_imgs)), suffix='%(percent)d%%')    
+    bar = Bar('redimensionando', fill='#', max = (len(lista_dir_imgs)), suffix='%(percent)d%%')    
     #Compara os arquivos no dir com os nomes de arquivos de refetencia
     for imagem_path in lista_dir_imgs:
         imagem , novo_nome = Utils.Geral.transformar_tipo_imagem(imagem_path,TRANSFORMAR_EM_TIPO=FORMATO_FINAL)
-        imagem = Utils.Geral.redimencionar_imagem(imagem, ALTURA=ALTURA_FIXA)
+        imagem = Utils.Geral.redimensionar_imagem(imagem, ALTURA=ALTURA_FIXA)
         save_path = os.path.join(os.path.dirname(imagem_path), novo_nome)
         imagem.save(save_path, FORMATO_FINAL)
         imagem.close()
@@ -39,7 +39,7 @@ def RedimencionarImagens(path_imgs, ALTURA_FIXA=640, FORMATO_FINAL = 'JPEG'):
 
 if __name__ == "__main__":
     ##  PARSER
-    ap = argparse.ArgumentParser(description="Redimenciona todas as imagens de uma pasta para uma altura padrão")
+    ap = argparse.ArgumentParser(description="redimensiona todas as imagens de uma pasta para uma altura padrão")
     ap.add_argument("-p", "--Path", required=False,default=' ',
         help="Caminho da pasta em que as imagens estão localizadas")
     ap.add_argument("-a", "--AlturaFixa", required=False,default=' ',
@@ -59,4 +59,4 @@ if __name__ == "__main__":
     else:
         AlturaFixa = int(args.Path)
 
-    RedimencionarImagens(_Path, ALTURA_FIXA=AlturaFixa)
+    redimensionarImagens(_Path, ALTURA_FIXA=AlturaFixa)

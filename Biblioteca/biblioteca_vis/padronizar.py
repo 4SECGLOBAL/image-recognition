@@ -3,13 +3,13 @@
 ##
 
 # IMPORTS
-from Scripts.redimencionarRapido import *
+from Scripts.redimensionarRapido import *
 
 # INPUT DO PATH PARA SER LIDO
 _path = input("Qual o diretorio do dataset a ser padronizado (somente imagens)?: \n")
 
 #EXECUTA AS FUNÇÕES
-RedimencionarRextensao(_path)
+redimensionarRextensao(_path)
 
 #PRONTO
 a = input("Pronto! Pressione enter para continuar...")
