@@ -1,0 +1,38 @@
+Classes e sinônimos:
+
+Arma: Arma, Revolver, Pistola, Rifle, Escopeta
+Faca: Faca, Facão
+Munição: Munição, Balas
+Dinheiro: Dinheiro, Grana, Notas de dinheiro, Notas de 100, Notas de 50
+Maconha: Maconha, Drogas, Prensado, Bloco de prensado, Papelote de maconha, Cigarro de maconha
+Cartao: Cartao de credito
+Documento: RG, Habilitação, Carteira de habilitação, Documento impresso, 
+Boleto: Boleto impresso, Conta de luz impressa, Conta de água impressa
+Print: Conversa em celular, Print em whatsapp, Tela de celular, Tela conversa
+
+Correlações entre classes:
+
+Armas: Munição, Faca, Maconha e Dinheiro
+Faca: Armas
+Munição: Armas, Maconha
+Dinheiro: Armas, Maconha, Cartao, Boleto, Documento
+Maconha: Armas, Munição, Dinheiro
+Cartao: Dinheiro, Documento e Boleto
+Documento: Cartao, Boleto e Dinheiro
+Boleto: Dinheiro, Documento e Cartao
+Print: 
+
+Contextos:
+
+Homem segurando
+Pessoa segurando
+Trafico
+Traficantes
+Crime
+Criminosos
+Roubo
+Assalto
+Fraude
+Apreendido
+Policia
+Milícia

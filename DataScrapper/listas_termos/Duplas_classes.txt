@@ -1,0 +1,24 @@
+armas e munição
+armas e facas
+armas e maconha
+armas e dinheiro
+munição e maconha
+dinheiro e maconha
+dinheiro e cartao
+dinheiro e boleto
+cartao e documento
+cartao e boleto
+documento e boleto
+documento e dinheiro
+
+revolver e munição
+revolver e facas
+revolver e maconha
+revolver e dinheiro
+revolver e maconha
+
+armas e munição
+armas e facas
+armas e maconha
+armas e dinheiro
+armas e maconha
