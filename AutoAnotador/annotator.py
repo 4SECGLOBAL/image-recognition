@@ -2,10 +2,9 @@
 # Adaptado de Ultralytics YOLO (https://docs.ultralytics.com/reference/data/annotator/#ultralytics.data.annotator.auto_annotate)
 
 from pathlib import Path
-
 from ultralytics import YOLO
-
 import cv2
+import argparse
 
 def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None, desired_class_id=None, draw=False):
     """
@@ -90,3 +89,25 @@ def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None, desi
                         output_image_path = Path(output_dir) / f"{Path(result.path).stem}_annotated.jpg"
                         print("Salvando imagem anotada no diretorio " + str(output_image_path)) 
                         cv2.imwrite(str(output_image_path), img)
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Auto annotate images using a YOLO model.")
+    parser.add_argument("data", type=str, help="Path to the folder containing images to annotate.")
+    parser.add_argument("--det_model", type=str, default="yolov8x.pt", help="Path or name of the YOLO model.")
+    parser.add_argument("--device", type=str, default="", help="Device to run the model on (e.g., 'cpu', 'cuda', '0').")
+    parser.add_argument("--output_dir", type=str, default=None, help="Directory to save the annotated results.")
+    parser.add_argument("--desired_class_id", type=int, default=None, help="Class ID to annotate. Annotates all classes if not specified.")
+    parser.add_argument("--draw", action="store_true", help="Draw bounding boxes on the original images and save them.")
+
+    args = parser.parse_args()
+
+    auto_annotate(
+        data=args.data,
+        det_model=args.det_model,
+        device=args.device,
+        output_dir=args.output_dir,
+        desired_class_id=args.desired_class_id,
+        draw=args.draw,
+    )
