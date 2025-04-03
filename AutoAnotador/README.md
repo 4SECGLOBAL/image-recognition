@@ -30,11 +30,11 @@ pip install -r requirements.txt
 ### Como executável Python
 1) Acessar a linha de comando
 2) Executar o script com os parâmetros desejados:
-2.1) Com parâmetros padrão
+- Com parâmetros padrão
 ```
 python annotator.py <caminho pra pasta de imagens>
 ```
-2.2) Com parâmetros customizados
+- Com parâmetros customizados
 ```
 python annotator.py <caminho pra pasta de imagens> --det_model <caminho do modelo> --device <id do dispositivo> --output_dir <caminho do diretorio de saida> --desired_class_id <id da classe desejada para anotacao> --draw <True ou False>
 ```
