@@ -33,10 +33,16 @@ def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None, desi
 
     # Le os dados do diretorio de entrada e cria diretorio de saida se nao existir
     data = Path(data)
+    if data.suffix == ".txt":
+        with open(data, "r") as file:
+            image_paths = [line.strip() for line in file.readlines()]
+        data = image_paths
+    else:
+        data = [data]
     if not output_dir:
         output_dir = data.parent / f"{data.stem}_auto_annotate_labels"
     Path(output_dir).mkdir(exist_ok=True, parents=True)
-
+    print(data)
     # Faz a inferencia em todas as imagens
     det_results = det_model(data, stream=True, device=device)
 
