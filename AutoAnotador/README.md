@@ -27,6 +27,19 @@ pip install -r requirements.txt
 
 ## Como utilizar
 
+### Como executável Python
+1) Acessar a linha de comando
+2) Executar o script com os parâmetros desejados:
+- Com parâmetros padrão
+```
+python annotator.py <caminho pra pasta de imagens>
+```
+- Com parâmetros customizados
+```
+python annotator.py <caminho pra pasta de imagens> --det_model <caminho do modelo> --device <id do dispositivo> --output_dir <caminho do diretorio de saida> --desired_class_id <id da classe desejada para anotacao> --draw <True ou False>
+```
+
+### Como biblioteca
 1) Acessar um ambiente python (digitando `python` ou `python3` no terminal) ou dentro de algum outro script
 2) Importar a função *auto_annotate*:
 ```
@@ -45,3 +58,7 @@ pip install -r requirements.txt
 - device (str): Dispositivo que vai processar o modelo (e.g., 'cpu', 'cuda', '0').
 
 - output_dir (str | None): Diretorio para salvar os resultados anotados. Se for None, um diretorio padrao sera criado.
+
+- desired_class_id (int | None): Id específico caso queira anotar somente uma classe.
+
+- draw (bool | False): Desenha as bounding boxes nas imagens respectivas e salva no output_dir.
