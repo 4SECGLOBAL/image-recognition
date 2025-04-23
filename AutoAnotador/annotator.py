@@ -2,6 +2,7 @@
 # Adaptado de Ultralytics YOLO (https://docs.ultralytics.com/reference/data/annotator/#ultralytics.data.annotator.auto_annotate)
 
 from pathlib import Path
+from collections import Counter
 from ultralytics import YOLO
 import cv2
 import argparse
@@ -15,11 +16,11 @@ def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None, desi
     
     Args:
         data (str): Caminho para a pasta com as imagens a ser anotadas.
-        det_model (str): Caminho ou nome do modelo YOLO pre-treinado.
-        device (str): Dispositivo que vai processar o modelo (e.g., 'cpu', 'cuda', '0').
+        det_model (str | "yolov8x.pt"): Caminho ou nome do modelo YOLO pre-treinado.
+        device (str | ""): Dispositivo que vai processar o modelo (e.g., 'cpu', 'cuda', '0').
         output_dir (str | None): Diretorio para salvar os resultados anotados. Se for None, um diretorio padrao sera criado.
         desired_class_id (int | None): ID da classe desejada para anotar. Se for None, todas as classes serao anotadas.
-        draw (bool): Se True, desenha as bounding boxes na imagem original e salva a imagem anotada.
+        draw (bool | False): Se True, desenha as bounding boxes na imagem original e salva a imagem anotada.
 
     Exemplos:
         >>> from AutoAnotador.annotator import auto_annotate
@@ -43,14 +44,22 @@ def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None, desi
     if not output_dir:
         output_dir = data.parent / f"{data.stem}_auto_annotate_labels"
     Path(output_dir).mkdir(exist_ok=True, parents=True)
-    print(data)
+
+    print("=> Inferência YOLO")
     # Faz a inferencia em todas as imagens
-    det_results = det_model(data, stream=True, device=device)
+    det_results = det_model(data, device=device)
 
     # Escreve as bounding boxes das imagens em arquivos de texto
+    print("\n=> Resultados por Imagem\n")
     for result in det_results:
         class_ids = result.boxes.cls.int().tolist()  # noqa
+        # Show filename and detection summary for each result
+        class_counts = Counter([det_model.names[c] for c in class_ids])
+        summary = ', '.join(f"{v} {k}" for k, v in class_counts.items())
+        print(f"{Path(result.path).name}: {summary}")
+
         if draw == True:
+            print("\n=> Desenhando Bounding Boxes\n")
             img = cv2.imread(result.path)
 
         if len(class_ids):
@@ -101,7 +110,7 @@ def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None, desi
                         output_image_path = Path(output_dir) / f"{Path(result.path).stem}_annotated.jpg"
                         print("Salvando imagem anotada no diretorio " + str(output_image_path)) 
                         cv2.imwrite(str(output_image_path), img)
-
+                        
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Auto annotate images using a YOLO model.")
