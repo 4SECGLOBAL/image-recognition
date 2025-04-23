@@ -36,7 +36,7 @@ python annotator.py <caminho pra pasta de imagens>
 ```
 - Com parâmetros customizados
 ```
-python annotator.py <caminho pra pasta de imagens ou arquivo .txt com caminhos> --det_model <caminho do modelo> --device <id do dispositivo> --output_dir <caminho do diretorio de saida> --desired_class_id <id da classe desejada para anotacao> --draw <True ou False>
+python annotator.py <caminho pra pasta de imagens ou arquivo .txt com caminhos> --det_model <caminho do modelo> --device <id do dispositivo> --output_dir <caminho do diretorio de saida> --desired_class_id <id da classe desejada para anotacao> --draw
 ```
 
 ### Como biblioteca
