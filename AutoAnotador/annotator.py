@@ -5,6 +5,7 @@ from pathlib import Path
 from ultralytics import YOLO
 import cv2
 import argparse
+import numpy as np
 
 def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None, desired_class_id=None, draw=False):
     """
@@ -77,11 +78,16 @@ def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None, desi
                         x2 = int(x_center + width / 2)
                         y2 = int(y_center + height / 2)
 
-                        # Desenha a bounding box
-                        img = cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                        # Desenha o ID da classe
-                        img = cv2.putText(img, str(class_ids[i]), (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                        np.random.seed(class_ids[i])  # garante que a cor seja sempre a mesma para o mesmo ID
+                        color = tuple(int(x) for x in np.random.randint(0, 255, size=3))
 
+                        # Desenha a bounding box com a cor da classe
+                        img = cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
+
+                        # Desenha o nome da classe com a mesma cor
+                        img = cv2.putText(img, str(det_model.names[class_ids[i]]), (x1, y1 + 20),
+                                          cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 4)
+                        
             if len(filtered_boxes) > 0:
                 with open(f"{Path(output_dir) / Path(result.path).stem}.txt", "w") as f:
                     # Escreve cada bounding box filtrada em uma nova linha do arquivo de texto
@@ -95,7 +101,6 @@ def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None, desi
                         output_image_path = Path(output_dir) / f"{Path(result.path).stem}_annotated.jpg"
                         print("Salvando imagem anotada no diretorio " + str(output_image_path)) 
                         cv2.imwrite(str(output_image_path), img)
-
 
 if __name__ == "__main__":
 
