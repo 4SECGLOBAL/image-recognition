@@ -33,9 +33,12 @@ Utilize os scripts de instalação:
 
 ## 🧩 Como Utilizar o Pipeline?
 
+![](Pipeline.png)
+
 É possível utilizar cada uma das ferramentas por si só, acessando a documentação de cada uma em seus respectivos diretórios, mas é possível aplicar de forma mais automatizada, com a integração de alguns passos e feedbacks de métricas ao longo do Pipeline
 
 ### 📥 Coleta e Limpeza de Imagens
+Utiliza os módulos DataScrapper e Limpeza. As imagens coletadas serão armazenadas em `DataScrapper/images/`.
 #### Linux
 ```bash
 ./coleta_e_limpeza.sh <termo_busca> <limite> [min_largura] [min_altura] [max_largura] [max_altura] [--limpeza_visual]
@@ -61,6 +64,7 @@ Utilize os scripts de instalação:
 - *--limpeza_visual*: usa pHash + embeddings visuais (opcional)
 
 ### 🖍️ Pré-Anotação
+Utiliza o módulo do AutoAnotador. As imagens pré-anotadas serão armazenadas em `DataScrapper/images_auto_annotate_labels`.
 #### Linux
 ```bash
 ./env_model/bin/python AutoAnotador/annotator.py ./DataScrapper/images/ \
@@ -90,9 +94,10 @@ Utilize os scripts de instalação:
 - *--draw*: salva imagens com as bounding boxes desenhadas (opcional, mas recomendado).
 
 ### 🧑‍🏫 Anotação Manual, Split e Data Augmentation
-Atualmente, esses procedimentos são realizados por ferramentas externas, como o [RoboFlow](https://app.roboflow.com). É necessário importar as imagens coletadas em DataScrapper/images e as bounding boxes da auto-anotação (se preferir pré-anotado) em DataScrapper/images_auto_annotate_labels. Realize os ajustes nas anotações, redefina as classes se necessário, defina a proporção de split (treinamento, validação e teste), defina as operações de data augmentation e exporte com a formatação YOLOv8 ou YOLOv11.
+Atualmente, esses procedimentos são realizados por ferramentas externas, como o [RoboFlow](https://app.roboflow.com). É necessário importar as imagens coletadas em DataScrapper/images e as bounding boxes da auto-anotação (se preferir pré-anotado) em DataScrapper/images_auto_annotate_labels. Realize os ajustes nas anotações, redefina as classes se necessário, defina a proporção de split (treinamento, validação e teste), defina as operações de data augmentation e exporte com a formatação YOLOv8 ou YOLOv11. De preferência, armazene o dataset (`data.yaml`, pastas `train/`, `val/` e `test/`) em `Avaliador/`
 
 ### 🏋️‍♂️ Treinamento
+Utiliza a interface de linha de comando do YOLO. Realiza o treinamento, retorna o arquivo `best.pt` e métricas em `runs/detect/train*`.
 #### Linux
 ```bash
 source env_model/bin/activate && yolo train data=<caminho do data.yaml do seu dataset> model=<caminho dos pesos .pt> epochs=<num epocas> batch=<tamanho do batch> imgsz=<dimensoes imagem> device=<dispositivo utilizado> cache=<True ou False>
@@ -123,6 +128,7 @@ source env_model/bin/activate && yolo train data=data.yaml model=dabest.pt epoch
 - *cache*: Determina se o dataset será armazenado em cache para acelerar o carregamento durante o treinamento. (opcional)
 
 ### ✅ Avaliação
+Utiliza os módulos AutoAnotador e Avaliador e a linha de comando do YOLO. Os resultados de métricas são armazenados em `Avaliador/validacao/` e as imagens anotadas podem ser verificadas em `<caminho dos dados de teste/images_auto_annotate_labels>`. 
 #### Linux
 ```bash
 ./avaliacao.sh <caminho yaml do dataset> <caminho do modelo> <caminho dos dados de teste> [confidence] [device] [save_json]

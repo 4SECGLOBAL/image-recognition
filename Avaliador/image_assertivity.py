@@ -3,7 +3,6 @@ from collections import defaultdict
 import argparse
 import yaml
 
-
 def calculate_class_accuracies(groundtruth_folder, predictions_folder, yaml_path, check_fp=False, save=False):
     # Ensure both folders exist
     if not os.path.exists(groundtruth_folder) and not(check_fp):
