@@ -40,20 +40,20 @@ Para utilizar o DataScrapper, deve-se seguir os seguintes passos:
 
 1. Garanta que o Google Chrome está instalado na sua máquina. Se não estiver, instale [daqui](https://www.google.com/chrome/).
 
-2. Faça o download do chromedriver correspondente à versão do seu Chrome e do seu sistema operacional (disponível [aqui](https://chromedriver.chromium.org/)) e o coloque neste diretório.
+2. Faça o download do chromedriver correspondente à versão do seu Chrome e do seu sistema operacional (disponível [aqui](https://chromedriver.chromium.org/)) e, para Windows, o coloque neste diretório, e para Linux o coloque em /usr/local/bin/.
 
-3. Execute o script determinando o caminho do arquivo de texto com os termos de busca desejados e o limite de imagens para download, nessa ordem, e as imagens serão baixadas em `./images/<termo de busca>`. O argumento `-join` é opcional e resulta em uma pasta com todas as imagens resultantes do arquivo de termos no mesmo diretório, caso não utilizada, as imagens são separadas em pastas nomeadas pelo termo da busca utilizada:
+3. Execute o script determinando o nome do arquivo de texto com os termos de busca desejados (presentes na pasta ./listas_termos/) e o limite de imagens para download, nessa ordem, e as imagens serão baixadas em `./images/<termo de busca>`. O argumento `-join` é opcional e resulta em uma pasta com todas as imagens resultantes do arquivo de termos no mesmo diretório, caso não utilizada, as imagens são separadas em pastas nomeadas pelo termo da busca utilizada:
 
 #### Windows
 
 ```
-.\execute.bat .\lista_chaves\Arma.txt 50 -join
+.\execute.bat Arma 50 -join
 ```
 
 #### Linux
 
 ```
-./execute.sh ./lista_chaves/Arma.txt 50 -join
+./execute.sh Arma 50 -join
 ```
 
 **OBS**: ``-join`` é opcional
@@ -82,7 +82,7 @@ Exemplo para um único termo de busca:
 
 ```bash
 .\venv\Scripts\activate
-python bing_scraper.py --search 'honeybees on flowers' --limit 10 --download --chromedriver .\chromedriver.exe
+python bing_scraper.py --search 'honeybees on flowers' --limit 10 --download --chromedriver .\chromedriver\chromedriver.exe
 ```
 
 #### Linux
@@ -90,12 +90,12 @@ Exemplo para uma única URL:
 
 ```bash
 source /venv/bin/activate
-python bing_scraper.py --url 'https://www.bing.com/images/search?q=flowers' --limit 10 --download --chromedriver ./chromedriver
+python bing_scraper.py --url 'https://www.bing.com/images/search?q=flowers' --limit 10 --download --chromedriver /usr/local/bin/chromedriver
 ```
 
 Exemplo para um único termo de busca:
 
 ```bash
 source /venv/bin/activate
-$ python bing_scraper.py --search 'honeybees on flowers' --limit 10 --download --chromedriver ../chromedriver
+$ python bing_scraper.py --search 'honeybees on flowers' --limit 10 --download --chromedriver /usr/local/bin/chromedriver
 ```
