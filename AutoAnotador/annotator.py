@@ -35,31 +35,32 @@ def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None, desi
 
     # Le os dados do diretorio de entrada e cria diretorio de saida se nao existir
     data = Path(data)
+    if not output_dir:
+        output_dir = data.parent / f"{data.stem}_auto_annotate_labels"
     if data.suffix == ".txt":
         with open(data, "r") as file:
             image_paths = [line.strip() for line in file.readlines()]
         data = image_paths
-    else:
-        data = [data]
-    if not output_dir:
-        output_dir = data.parent / f"{data.stem}_auto_annotate_labels"
     Path(output_dir).mkdir(exist_ok=True, parents=True)
 
-    print("=> Inferência YOLO")
+    print("🔍 Iniciando Inferência YOLO para detecção de objetos nas imagens...")
+
     # Faz a inferencia em todas as imagens
     det_results = det_model(data, device=device)
 
-    # Escreve as bounding boxes das imagens em arquivos de texto
-    print("\n=> Resultados por Imagem\n")
+    # Exibe resultados detalhados por imagem
+    print("\n🖼️  Resultados por Imagem\n")
+
+    print(f"Imagem       |       Detecção")
+    print(f"------------------------------")
     for result in det_results:
         class_ids = result.boxes.cls.int().tolist()  # noqa
-        # Show filename and detection summary for each result
+        # Exibe o nome do arquivo e o resumo da detecção para cada imagem processada
         class_counts = Counter([det_model.names[c] for c in class_ids])
         summary = ', '.join(f"{v} {k}" for k, v in class_counts.items())
-        print(f"{Path(result.path).name}: {summary}")
+        print(f"{Path(result.path).name} | {summary}")
 
         if draw == True:
-            print("\n=> Desenhando Bounding Boxes\n")
             img = cv2.imread(result.path)
 
         if len(class_ids):
@@ -108,18 +109,20 @@ def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None, desi
                         f.write(f"{filtered_class_ids[i]} " + " ".join(box) + "\n")
                     if draw == True:
                         output_image_path = Path(output_dir) / f"{Path(result.path).stem}_annotated.jpg"
-                        print("Salvando imagem anotada no diretorio " + str(output_image_path)) 
                         cv2.imwrite(str(output_image_path), img)
-                        
+
+    print(f"\n💾 Salvando imagens anotadas no diretório: {str(output_dir)}") 
+    print("\n✅ Anotação automática concluída com sucesso!")
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Auto annotate images using a YOLO model.")
-    parser.add_argument("data", type=str, help="Path to the folder containing images to annotate.")
-    parser.add_argument("--det_model", type=str, default="yolov8x.pt", help="Path or name of the YOLO model.")
-    parser.add_argument("--device", type=str, default="", help="Device to run the model on (e.g., 'cpu', 'cuda', '0').")
-    parser.add_argument("--output_dir", type=str, default=None, help="Directory to save the annotated results.")
-    parser.add_argument("--desired_class_id", type=int, default=None, help="Class ID to annotate. Annotates all classes if not specified.")
-    parser.add_argument("--draw", action="store_true", help="Draw bounding boxes on the original images and save them.")
+    parser.add_argument("data", type=str, help="Caminho para a pasta contendo as imagens para anotar.")
+    parser.add_argument("--det_model", type=str, default="yolov8x.pt", help="Caminho ou nome do modelo YOLO.")
+    parser.add_argument("--device", type=str, default="", help="Dispositivo para rodar o modelo (e.g., 'cpu', 'cuda', '0').")
+    parser.add_argument("--output_dir", type=str, default=None, help="Diretório para salvar os resultados anotados.")
+    parser.add_argument("--desired_class_id", type=int, default=None, help="ID da classe para anotar. Anota todas as classes se não especificado.")
+    parser.add_argument("--draw", action="store_true", help="Desenha as bounding boxes nas imagens originais e as salva.")
 
     args = parser.parse_args()
 

@@ -52,7 +52,7 @@ max_largura, max_altura: dimensões máximas (padrão: 1920x1080)
 
 ### Pré-Anotação
 ```bash
-./env_modelo/bin/python AutoAnotador/annotator.py ./DataScrapper/images/ \
+./env_model/bin/python AutoAnotador/annotator.py ./DataScrapper/images/ \
   --det_model <caminho pesos modelo pré-treinado> \
   --draw
 ```
@@ -71,3 +71,43 @@ max_largura, max_altura: dimensões máximas (padrão: 1920x1080)
 --desired_class_id: anotar apenas uma classe específica (opcional).
 
 --draw: salva imagens com as bounding boxes desenhadas (opcional, mas recomendado).
+
+### Anotação Manual, Split e Data Augmentation
+Atualmente, esses procedimentos são realizados por ferramentas externas, como o [RoboFlow](https://app.roboflow.com). É necessário importar as imagens coletadas em DataScrapper/images e as bounding boxes da auto-anotação (se preferir pré-anotado) em DataScrapper/images_auto_annotate_labels. Realize os ajustes nas anotações, redefina as classes se necessário, defina a proporção de split (treinamento, validação e teste), defina as operações de data augmentation e exporte com a formatação YOLOv8 ou YOLOv11.
+
+### Treinamento
+```bash
+source env_model/bin/activate && yolo train data=<caminho do data.yaml do seu dataset> model=<caminho dos pesos .pt> epochs=<num epocas> batch=<tamanho do batch> imgsz=<dimensoes imagem> device=<dispositivo utilizado> cache=<True ou False>
+```
+
+✅ Exemplo:
+```bash
+source env_model/bin/activate && yolo train data=data.yaml model=dabest.pt epochs=5000 batch=16 imgsz=640 device=0,1,2 cache=True && deactivate
+```
+
+#### Argumentos
+data: caminho para o arquivo data.yaml que define a estrutura do seu dataset.
+
+model: nome ou caminho para o modelo pré-treinado (.pt) que será utilizado como base para o treinamento.
+
+epochs: Número de épocas (passagens completas pelo dataset) para o treinamento. Aumentar o número de épocas pode melhorar a precisão, mas também aumenta o tempo de treinamento.​
+
+batch: Tamanho do lote (batch size) utilizado durante o treinamento. Valores maiores podem acelerar o treinamento, mas exigem mais memória.​
+
+imgsz: Tamanho das imagens de entrada (em pixels) para o modelo.
+
+device: Especifica o dispositivo de computação a ser utilizado para o treinamento. Ex.: device=0: Utiliza a GPU de índice 0; device=0,1: Utiliza múltiplas GPUs (índices 0 e 1); device=cpu: Utiliza o processador (CPU)
+
+cache: Determina se o dataset será armazenado em cache para acelerar o carregamento durante o treinamento.
+
+### Treinamento
+```bash
+source env_model/bin/activate && yolo train data=<caminho do data.yaml do seu dataset> model=<caminho dos pesos .pt> epochs=<num epocas> batch=<tamanho do batch> imgsz=<dimensoes imagem> device=<dispositivo utilizado> cache=<True ou False>
+```
+
+✅ Exemplo:
+```bash
+source env_model/bin/activate && yolo train data=data.yaml model=dabest.pt epochs=5000 batch=16 imgsz=640 device=0,1,2 cache=True && deactivate
+```
+
+#### Avaliação
