@@ -39,7 +39,7 @@ Utilize os scripts de instalação:
 ```bash
 ./coleta_e_limpeza.sh <termo_busca> <limite> [min_largura] [min_altura] [max_largura] [max_altura] [--limpeza_visual]
 ```
-✅ Exemplo:
+*Exemplo:*
 ```bash
 ./coleta_e_limpeza.sh "Arma" 80 200 200 1280 720 --limpeza_visual
 ```
@@ -62,7 +62,7 @@ Utilize os scripts de instalação:
   --draw
 ```
 
-✅ Exemplo:
+*Exemplo:*
 ```bash
 ./env_modelo/bin/python AutoAnotador/annotator.py ./DataScrapper/images/ \
   --det_model best.pt \
@@ -85,7 +85,7 @@ Atualmente, esses procedimentos são realizados por ferramentas externas, como o
 source env_model/bin/activate && yolo train data=<caminho do data.yaml do seu dataset> model=<caminho dos pesos .pt> epochs=<num epocas> batch=<tamanho do batch> imgsz=<dimensoes imagem> device=<dispositivo utilizado> cache=<True ou False>
 ```
 
-✅ Exemplo:
+*Exemplo:*
 ```bash
 source env_model/bin/activate && yolo train data=data.yaml model=dabest.pt epochs=5000 batch=16 imgsz=640 device=0,1,2 cache=True && deactivate
 ```
@@ -105,11 +105,11 @@ source env_model/bin/activate && yolo train data=data.yaml model=dabest.pt epoch
 
 - *cache*: Determina se o dataset será armazenado em cache para acelerar o carregamento durante o treinamento. (opcional)
 
-### Avaliação
+### ✅ Avaliação
 ```bash
 ./avaliacao.sh <caminho yaml do dataset> <caminho do modelo> <caminho dos dados de teste> [confidence] [device] [save_json]
 ```
-✅ Exemplo:
+*Exemplo:*
 ```bash
 ./avaliacao.sh Avaliador/data.yaml /home/user/Downloads/best.pt Avaliador/test/
 ```
