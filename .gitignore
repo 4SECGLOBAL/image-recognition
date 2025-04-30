@@ -1,3 +1,9 @@
 DataScrapper/images*
 DataScrapper/chromedriver*
 env*
+Avaliador/validacao*
+Avaliador/valid*
+Avaliador/test*
+Avaliador/train*
+Avaliador/data.yaml*
+Avaliador/README.*
