@@ -36,10 +36,15 @@ Utilize os scripts de instalação:
 É possível utilizar cada uma das ferramentas por si só, acessando a documentação de cada uma em seus respectivos diretórios, mas é possível aplicar de forma mais automatizada, com a integração de alguns passos e feedbacks de métricas ao longo do Pipeline
 
 ### 📥 Coleta e Limpeza de Imagens
+#### Linux
 ```bash
 ./coleta_e_limpeza.sh <termo_busca> <limite> [min_largura] [min_altura] [max_largura] [max_altura] [--limpeza_visual]
 ```
-*Exemplo:*
+#### Windows
+```bash
+.\coleta_e_limpeza.bat <termo_busca> <limite> [min_largura] [min_altura] [max_largura] [max_altura] [--limpeza_visual]
+```
+*Exemplo (Linux):*
 ```bash
 ./coleta_e_limpeza.sh "Arma" 80 200 200 1280 720 --limpeza_visual
 ```
@@ -56,13 +61,20 @@ Utilize os scripts de instalação:
 - *--limpeza_visual*: usa pHash + embeddings visuais (opcional)
 
 ### 🖍️ Pré-Anotação
+#### Linux
 ```bash
 ./env_model/bin/python AutoAnotador/annotator.py ./DataScrapper/images/ \
   --det_model <caminho pesos modelo pré-treinado> \
   --draw
 ```
+#### Windows
+```bash
+.\env_model/Scripts/python.exe AutoAnotador\annotator.py .\DataScrapper\images\ \
+  --det_model <caminho pesos modelo pré-treinado> \
+  --draw
+```
 
-*Exemplo:*
+*Exemplo (Linux):*
 ```bash
 ./env_modelo/bin/python AutoAnotador/annotator.py ./DataScrapper/images/ \
   --det_model best.pt \
@@ -81,11 +93,16 @@ Utilize os scripts de instalação:
 Atualmente, esses procedimentos são realizados por ferramentas externas, como o [RoboFlow](https://app.roboflow.com). É necessário importar as imagens coletadas em DataScrapper/images e as bounding boxes da auto-anotação (se preferir pré-anotado) em DataScrapper/images_auto_annotate_labels. Realize os ajustes nas anotações, redefina as classes se necessário, defina a proporção de split (treinamento, validação e teste), defina as operações de data augmentation e exporte com a formatação YOLOv8 ou YOLOv11.
 
 ### 🏋️‍♂️ Treinamento
+#### Linux
 ```bash
 source env_model/bin/activate && yolo train data=<caminho do data.yaml do seu dataset> model=<caminho dos pesos .pt> epochs=<num epocas> batch=<tamanho do batch> imgsz=<dimensoes imagem> device=<dispositivo utilizado> cache=<True ou False>
 ```
+#### Windows
+```bash
+.\env_model\Scripts\activate && yolo train data=<caminho do data.yaml do seu dataset> model=<caminho dos pesos .pt> epochs=<num epocas> batch=<tamanho do batch> imgsz=<dimensoes imagem> device=<dispositivo utilizado> cache=<True ou False>
+```
 
-*Exemplo:*
+*Exemplo (Linux):*
 ```bash
 source env_model/bin/activate && yolo train data=data.yaml model=dabest.pt epochs=5000 batch=16 imgsz=640 device=0,1,2 cache=True && deactivate
 ```
@@ -106,10 +123,15 @@ source env_model/bin/activate && yolo train data=data.yaml model=dabest.pt epoch
 - *cache*: Determina se o dataset será armazenado em cache para acelerar o carregamento durante o treinamento. (opcional)
 
 ### ✅ Avaliação
+#### Linux
 ```bash
 ./avaliacao.sh <caminho yaml do dataset> <caminho do modelo> <caminho dos dados de teste> [confidence] [device] [save_json]
 ```
-*Exemplo:*
+#### Windows
+```bash
+.\avaliacao.bat <caminho yaml do dataset> <caminho do modelo> <caminho dos dados de teste> [confidence] [device] [save_json]
+```
+*Exemplo (Linux):*
 ```bash
 ./avaliacao.sh Avaliador/data.yaml /home/user/Downloads/best.pt Avaliador/test/
 ```
