@@ -35,7 +35,7 @@ Utilize os scripts de instalação:
 
 É possível utilizar cada uma das ferramentas por si só, acessando a documentação de cada uma em seus respectivos diretórios, mas é possível aplicar de forma mais automatizada, com a integração de alguns passos e feedbacks de métricas ao longo do Pipeline
 
-### Coleta e Limpeza de Imagens
+### 📥 Coleta e Limpeza de Imagens
 ```bash
 ./coleta_e_limpeza.sh <termo_busca> <limite> [min_largura] [min_altura] [max_largura] [max_altura] [--limpeza_visual]
 ```
@@ -55,7 +55,7 @@ Utilize os scripts de instalação:
 
 - *--limpeza_visual*: usa pHash + embeddings visuais (opcional)
 
-### Pré-Anotação
+### 🖍️ Pré-Anotação
 ```bash
 ./env_model/bin/python AutoAnotador/annotator.py ./DataScrapper/images/ \
   --det_model <caminho pesos modelo pré-treinado> \
@@ -77,10 +77,10 @@ Utilize os scripts de instalação:
 
 - *--draw*: salva imagens com as bounding boxes desenhadas (opcional, mas recomendado).
 
-### Anotação Manual, Split e Data Augmentation
+### 🧑‍🏫 Anotação Manual, Split e Data Augmentation
 Atualmente, esses procedimentos são realizados por ferramentas externas, como o [RoboFlow](https://app.roboflow.com). É necessário importar as imagens coletadas em DataScrapper/images e as bounding boxes da auto-anotação (se preferir pré-anotado) em DataScrapper/images_auto_annotate_labels. Realize os ajustes nas anotações, redefina as classes se necessário, defina a proporção de split (treinamento, validação e teste), defina as operações de data augmentation e exporte com a formatação YOLOv8 ou YOLOv11.
 
-### Treinamento
+### 🏋️‍♂️ Treinamento
 ```bash
 source env_model/bin/activate && yolo train data=<caminho do data.yaml do seu dataset> model=<caminho dos pesos .pt> epochs=<num epocas> batch=<tamanho do batch> imgsz=<dimensoes imagem> device=<dispositivo utilizado> cache=<True ou False>
 ```
