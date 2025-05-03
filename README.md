@@ -35,10 +35,10 @@ Utilize os scripts de instalação:
 
 ![](Pipeline.png)
 
-É possível utilizar cada uma das ferramentas por si só, acessando a documentação de cada uma em seus respectivos diretórios, mas é possível aplicar de forma mais automatizada, com a integração de alguns passos e feedbacks de métricas ao longo do Pipeline
+É possível utilizar cada uma das ferramentas por si só, acessando a documentação de cada uma em seus respectivos diretórios, mas é possível aplicar de forma mais automatizada, com a integração de alguns passos e feedbacks de métricas ao longo do Pipeline.
 
 ### 📥 Coleta e Limpeza de Imagens
-Utiliza os módulos DataScrapper e Limpeza. As imagens coletadas serão armazenadas em `DataScrapper/images/`.
+Utiliza os módulos DataScrapper e Limpeza. As imagens coletadas serão armazenadas em `DataScrapper/images/`. Defina os termos de busca em arquivos .txt em `./DataScrapper/listas_termos`.
 #### Linux
 ```bash
 ./coleta_e_limpeza.sh <termo_busca> <limite> [min_largura] [min_altura] [max_largura] [max_altura] [--limpeza_visual]
@@ -128,7 +128,7 @@ source env_model/bin/activate && yolo train data=data.yaml model=dabest.pt epoch
 - *cache*: Determina se o dataset será armazenado em cache para acelerar o carregamento durante o treinamento. (opcional)
 
 ### ✅ Avaliação
-Utiliza os módulos AutoAnotador e Avaliador e a linha de comando do YOLO. Os resultados de métricas são armazenados em `Avaliador/validacao/` e as imagens anotadas podem ser verificadas em `<caminho dos dados de teste/images_auto_annotate_labels>`. 
+Utiliza os módulos AutoAnotador e Avaliador e a linha de comando do YOLO. Os resultados de métricas são armazenados em `Avaliador/validacao/` e as imagens anotadas podem ser verificadas em `<caminho dos dados de teste>/images_auto_annotate_labels`. 
 #### Linux
 ```bash
 ./avaliacao.sh <caminho yaml do dataset> <caminho do modelo> <caminho dos dados de teste> [confidence] [device] [save_json]
