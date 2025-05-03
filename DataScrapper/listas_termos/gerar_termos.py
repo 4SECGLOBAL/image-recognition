@@ -29,8 +29,8 @@ class ArestaDeContexto():
 
 # Classe principal que representa o grafo das classes semânticas
 class GrafoDeClasses():
-    def __init__(self, n_classes, lista_classes):
-        self.n_classes = n_classes             # Número total de classes
+    def __init__(self, lista_classes):
+        self.n_classes = lista_classes.len()   # Número total de classes
         self.lista_nos = []                    # Lista de objetos NoDeClasse
         self.dict_classes = {}                 # Mapeia nome da classe para índice
 
