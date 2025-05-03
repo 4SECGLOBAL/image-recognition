@@ -20,6 +20,11 @@ Este repositório contém ferramentas para Coleta, Limpeza, Anotação, Treiname
 - Métrica de "Assertividade": verifica se uma classe presente foi corretamente detectada.
 
 ## ⚙️ Instalação
+Garanta que sua máquina possui Python e instale a biblioteca `virtualenv` para permitir a criação de ambientes virtuais Python:
+
+```bash
+python3  -m pip install virtualenv
+```
 
 Utilize os scripts de instalação:
 
