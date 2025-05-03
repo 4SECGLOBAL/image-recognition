@@ -1,4 +1,4 @@
-Como Utilizar `generate_search_terms()`
+## Como Utilizar `generate_search_terms()`
 
 A função `generate_search_terms()` é responsável por gerar termos de busca com base em um grafo semântico construído a partir de classes, contextos e sinônimos.
 
