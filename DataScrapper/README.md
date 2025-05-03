@@ -66,6 +66,8 @@ termo de busca 2
 termo de busca 3
 ```
 
+**OBS**: o script *gerar_termos.py* possibilita a geração de uma combinação de duplas de classes associadas com contextos e sinônimos, acesse `./listas_termos/README.md` para mais informações sobre como utilizá-lo.
+
 ### Termo de busca único
 
 É possível realizar uma busca de um único termo, utilizando uma url ou termo de busca, com regulagem de número de imagens limite para fazer download:
