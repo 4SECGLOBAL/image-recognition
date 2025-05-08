@@ -6,4 +6,5 @@ Avaliador/valid*
 Avaliador/test*
 Avaliador/train*
 Avaliador/data.yaml*
-Avaliador/README.*
+Avaliador/README.dataset*
+Avaliador/README.roboflow*
