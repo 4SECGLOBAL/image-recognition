@@ -4,10 +4,8 @@ Este repositório contém o script `limpeza_dataset.py`, que realiza a limpeza e
 
 ## Funcionalidades
 
-- Remoção de arquivos corrompidos ou inválidos.
-- Organização de imagens em diretórios específicos.
-- Renomeação de arquivos para um padrão consistente.
-- Exclusão de duplicatas com base em hashes e pHashes.
+- Remove imagens duplicadas ou fora de especificações.
+- Métodos de hash simples e perceptual hash (pHash) com embeddings visuais.
 
 ## Como usar
 
@@ -20,7 +18,7 @@ Este repositório contém o script `limpeza_dataset.py`, que realiza a limpeza e
     ```
 3. Execute o script apontando para o diretório do dataset:
     ```bash
-    python limpeza_dataset.py --input_dir C:\caminho\para\dataset --output_dir C:\caminho\para\saida
+    python limpeza_dataset.py C:\caminho\para\dataset --min_largura [min_largura] --min_altura [min_altura] --max_largura [max_largura] --max_altura [max_altura] --limpeza_visual
     ```
 
 ### Linux
@@ -32,12 +30,11 @@ Este repositório contém o script `limpeza_dataset.py`, que realiza a limpeza e
     ```
 3. Execute o script apontando para o diretório do dataset:
     ```bash
-    python limpeza_dataset.py --input_dir /caminho/para/dataset --output_dir /caminho/para/saida
+    python limpeza_dataset.py /caminho/para/dataset --min_largura [min_largura] --min_altura [min_altura] --max_largura [max_largura] --max_altura [max_altura] --limpeza_visual
     ```
 
 ## Parâmetros
 
-- `--input_dir`: Diretório contendo o dataset original.
-- `--output_dir`: Diretório onde o dataset limpo será salvo.
-- `--remove_duplicates`: (Opcional) Remove arquivos duplicados.
-- `--log_file`: (Opcional) Caminho para salvar o log do processo.
+- **min_largura, min_altura**: dimensões mínimas (padrão: 100x100)
+- **max_largura, max_altura**: dimensões máximas (padrão: 1920x1080)
+- *--limpeza_visual*: usa pHash + embeddings visuais (opcional)
