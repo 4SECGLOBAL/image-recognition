@@ -22,8 +22,12 @@ REM Caminho para o Python do ambiente virtual
 set "PYTHON_EXEC=env_limpeza\Scripts\python.exe"
 
 REM Verifica se o argumento --limpeza_visual foi passado
+set "limpeza_flag=true"
 set "limpeza_visual_flag="
 for %%a in (%*) do (
+    if "%%a"=="--sem_limpeza" (
+        set "limpeza_flag=false"
+    )
     if "%%a"=="--limpeza_visual" (
         set "limpeza_visual_flag=--limpeza_visual"
     )
@@ -34,6 +38,7 @@ echo 🚀 Iniciando processo completo de coleta e limpeza de imagens...
 echo 🔍 Termo de busca: "%termo_busca%"
 echo 📸 Limite de imagens: %limite%
 echo 📏 Filtros de tamanho → mín: %min_larg%x%min_alt%, máx: %max_larg%x%max_alt%
+if "%limpeza_flag%"=="false" echo 🧹 Limpeza do dataset desativada.
 if defined limpeza_visual_flag echo 🖼️  Modo de limpeza visual ativado!
 
 echo.
@@ -43,19 +48,24 @@ call execute.bat %termo_busca% %limite% -join
 popd
 
 echo.
-echo 🧹 => LIMPEZA DO DATASET
-call %PYTHON_EXEC% Limpeza\limpeza_dataset.py %images_dir% ^
-    --min_width %min_larg% ^
-    --min_height %min_alt% ^
-    --max_width %max_larg% ^
-    --max_height %max_alt% ^
-    %limpeza_visual_flag%
-
-if errorlevel 1 (
-    echo ❌ Erro ao executar o script de limpeza.
-    exit /b 1
-) else (
+if "%limpeza_flag%"=="false" (
+    echo ⏭️  Limpeza do dataset pulada.
     echo 🧾 Imagens finais salvas em: %images_dir%
+) else (
+    echo 🧹 => LIMPEZA DO DATASET
+    call %PYTHON_EXEC% Limpeza\limpeza_dataset.py %images_dir% ^
+        --min_width %min_larg% ^
+        --min_height %min_alt% ^
+        --max_width %max_larg% ^
+        --max_height %max_alt% ^
+        %limpeza_visual_flag%
+
+    if errorlevel 1 (
+        echo ❌ Erro ao executar o script de limpeza.
+        exit /b 1
+    ) else (
+        echo 🧾 Imagens finais salvas em: %images_dir%
+    )
 )
 
 echo.

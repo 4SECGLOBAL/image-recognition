@@ -1,0 +1,110 @@
+services:
+
+  datascrapper-api: # 1° Estágio
+    build:
+      context: .
+      dockerfile: DataScrapper/api/Dockerfile
+    image: image-recognition-datascrapper-api
+    container_name: image-recognition-datascrapper-api
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./DataScrapper/images:/app/DataScrapper/images
+      - ./DataScrapper/images_auto_annotate_labels:/app/DataScrapper/images_auto_annotate_labels
+      - ./DataScrapper/listas_termos:/app/DataScrapper/listas_termos
+
+  yolo-labelling-tool: # 2° Estágio, https://github.com/asd65241/yolo-labelling-tool
+    build:
+      context: ./PreAnotacao
+      dockerfile: Dockerfile
+    image: image-recognition-yolo-labelling-tool
+    container_name: image-recognition-yolo-labelling-tool
+    restart: "always"
+    ports:
+      - "3000:3000"
+
+  annotator-api: # 3° Estágio
+    build:
+      context: .
+      dockerfile: AutoAnotador/api/Dockerfile
+    image: image-recognition-annotator-api
+    container_name: image-recognition-annotator-api
+    ports:
+      - "8002:8000"
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities:
+                - gpu
+    volumes:
+      - ./yolov8n.pt:/app/yolov8n.pt:ro
+      - ./DataScrapper/images:/app/DataScrapper/images
+      - ./DataScrapper/images_auto_annotate_labels:/app/DataScrapper/images_auto_annotate_labels
+
+  # 4° Estágio
+  evaluator-api:
+    build:
+      context: .
+      dockerfile: Avaliador/api/Dockerfile
+    image: image-recognition-evaluator-api
+    container_name: image-recognition-evaluator-api
+    ports:
+      - "8003:8000"
+    shm_size: "2gb"
+    runtime: nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities:
+                - gpu
+    volumes:
+      - ./DataScrapper/images_auto_annotate_labels:/app/DataScrapper/images_auto_annotate_labels
+      - ./Avaliador:/app/Avaliador
+      - ./Avaliador/data.yaml:/app/Avaliador/data.yaml
+      - ./runs:/app/runs
+      - ./yolov8n.pt:/app/yolov8n.pt:ro
+      - ./best.pt:/app/best.pt:ro
+
+  inference-api: # 5° Estágio
+    build:
+      context: .
+      dockerfile: Inferencia/api/Dockerfile
+    image: image-recognition-inference-api
+    container_name: image-recognition-inference-api
+    ports:
+      - "8004:8000"
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities:
+                - gpu
+    volumes:
+      - ./Inferencia:/app/Inferencia
+      - ./runs:/app/runs
+      - ./yolov8n.pt:/app/yolov8n.pt:ro
+      - ./best.pt:/app/best.pt:ro
+
+volumes:
+  label-studio-data:
+
+networks:
+  default:
+    name: "4secglobal"

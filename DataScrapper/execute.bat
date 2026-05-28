@@ -31,20 +31,32 @@ for /f "usebackq delims=" %%A in ("%filename%") do (
     set "search_term=%%A"
     echo => Baixando imagens para o termo: !search_term! com limite de %limit% imagens
 
-    REM Executa o script Python
-    %PYTHON_EXEC% .\google-images-download\bing_scraper.py --search "!search_term!" --limit %limit% --download --chromedriver ".\DataScrapper\chromedriver\chromedriver.exe" -i "%filename%"
+    for /f %%F in ('dir /a-d /b "%images_dir%" 2^>nul ^| find /c /v ""') do set /a images_before=%%F
+    set "prefix=!search_term: =_!"
 
-    REM Constrói nome de diretório
-    set "search_dir=%images_dir%!search_term: =_!"
+    echo Motor: Bing
+    %PYTHON_EXEC% .\google-images-download\bing_scraper.py --search "!search_term!" --limit %limit% --download --chromedriver ".\DataScrapper\chromedriver\chromedriver.exe" --flat_directory --prefix "bing_!prefix!"
+    set "bing_status=!errorlevel!"
 
-    if exist "!search_dir!" (
-        for /f %%F in ('dir /a-d /b "!search_dir!" ^| find /c /v ""') do (
-            set /a images_downloaded=%%F
-            set /a total_images_downloaded+=images_downloaded
-            echo Termo: "!search_term!" - Imagens baixadas: !images_downloaded!/%limit%
-        )
+    echo Motor: Google
+    %PYTHON_EXEC% .\google-images-download\google_scraper.py --search "!search_term!" --limit %limit% --download --chromedriver ".\DataScrapper\chromedriver\chromedriver.exe" --flat_directory --prefix "google_!prefix!"
+    set "google_status=!errorlevel!"
+
+    if "!bing_status!"=="0" (
+        set "has_success=1"
+    ) else if "!google_status!"=="0" (
+        set "has_success=1"
     ) else (
-        echo Erro: O diretório "!search_dir!" não foi encontrado.
+        set "has_success=0"
+    )
+
+    if "!has_success!"=="1" (
+        for /f %%F in ('dir /a-d /b "%images_dir%" 2^>nul ^| find /c /v ""') do set /a images_after=%%F
+        set /a images_downloaded=images_after-images_before
+        set /a total_images_downloaded+=images_downloaded
+        echo Termo: "!search_term!" - Imagens baixadas: !images_downloaded!/%limit%
+    ) else (
+        echo Erro ao baixar imagens para o termo "!search_term!" em todos os motores.
     )
 )
 
@@ -54,20 +66,7 @@ echo => Total de imagens baixadas com sucesso: %total_images_downloaded%
 REM Verifica se o terceiro argumento é -join
 if /i "%junta%"=="-join" (
     echo.
-    echo => Unindo todas as imagens em um único diretório
-
-    for /f "usebackq delims=" %%L in ("%filename%") do (
-        set "line=%%L"
-        set "current_dir=%images_dir%!line: =_!"
-
-        if exist "!current_dir!" (
-            echo Movendo arquivos de "!current_dir!" para "%images_dir%"
-            move /Y "!current_dir!\*" "%images_dir%" >nul
-            rmdir /S /Q "!current_dir!"
-        ) else (
-            echo Erro: O diretório "!current_dir!" não existe.
-        )
-    )
+    echo => As imagens ja foram salvas diretamente em "%images_dir%"
 )
 
 endlocal

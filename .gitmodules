@@ -1,3 +1,6 @@
 [submodule "DataScrapper/google-images-download"]
 	path = DataScrapper/google-images-download
 	url = https://github.com/ultralytics/google-images-download.git
+[submodule "PreAnotacao4"]
+	path = PreAnotacao4
+	url = https://github.com/asd65241/yolo-labelling-tool.git

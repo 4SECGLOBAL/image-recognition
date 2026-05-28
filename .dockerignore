@@ -1,0 +1,10 @@
+.git
+.agents
+.codex
+env*
+runs
+DataScrapper/images*
+Avaliador/images
+Avaliador/labels
+__pycache__
+*.pyc

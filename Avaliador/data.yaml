@@ -1,0 +1,9 @@
+path: /app/Avaliador
+train: images/train
+val: images/val
+test: test/images
+nc: 3
+names:
+  0: dinheiro
+  1: cedula_20_reais
+  2: cedula_50_reais

@@ -8,7 +8,7 @@ import cv2
 import argparse
 import numpy as np
 
-def auto_annotate(data, det_model="yolov8x.pt", device="", output_dir=None, desired_class_id=None, draw=False):
+def auto_annotate(data, det_model="yolov8x.pt", device="cpu", output_dir=None, desired_class_id=None, draw=False):
     """
     Anota automaticamente imagens usando um modelo de detecção em imagens YOLO.
 
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Auto annotate images using a YOLO model.")
     parser.add_argument("data", type=str, help="Caminho para a pasta contendo as imagens para anotar.")
     parser.add_argument("--det_model", type=str, default="yolov8x.pt", help="Caminho ou nome do modelo YOLO.")
-    parser.add_argument("--device", type=str, default="", help="Dispositivo para rodar o modelo (e.g., 'cpu', 'cuda', '0').")
+    parser.add_argument("--device", type=str, default="cpu", help="Dispositivo para rodar o modelo (e.g., 'cpu', 'cuda', '0').")
     parser.add_argument("--output_dir", type=str, default=None, help="Diretório para salvar os resultados anotados.")
     parser.add_argument("--desired_class_id", type=int, default=None, help="ID da classe para anotar. Anota todas as classes se não especificado.")
     parser.add_argument("--draw", action="store_true", help="Desenha as bounding boxes nas imagens originais e as salva.")

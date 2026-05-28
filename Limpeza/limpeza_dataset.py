@@ -17,7 +17,7 @@ def obter_imagens(caminho_entrada):
         return [
             os.path.join(caminho_entrada, f)
             for f in os.listdir(caminho_entrada)
-            if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp', '.gif', '.webp'))
+            if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp', '.gif', '.webp', '.avif'))
         ]
     elif os.path.isfile(caminho_entrada) and caminho_entrada.lower().endswith('.txt'):
         with open(caminho_entrada, 'r', encoding='utf-8') as f:

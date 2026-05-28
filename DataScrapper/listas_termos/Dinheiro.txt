@@ -1,4 +1,2 @@
-notas de dinheiro
-notas de 100 reais
-notas de 50 reais
-dinheiro fisico
+nota de 50 reais
+dinheiro brasileiro

@@ -9,7 +9,19 @@ fi
 
 # Diretórios padrão
 termos_dir="./listas_termos/"
-images_dir="./images/"
+images_dir="${DATASCRAPPER_IMAGES_DIR:-./images/}"
+images_dir="${images_dir%/}/"
+
+mkdir -p "$images_dir"
+chmod 777 "$images_dir" 2>/dev/null || true
+
+images_parent="$(dirname "$images_dir")"
+images_basename="$(basename "$images_dir")"
+if [ "$(basename "$images_parent")" = "images" ]; then
+  labels_dir="$(dirname "$images_parent")/images_auto_annotate_labels/$images_basename"
+  mkdir -p "$labels_dir"
+  chmod 777 "$labels_dir" 2>/dev/null || true
+fi
 
 # Parâmetros
 filename="$termos_dir$1.txt"
@@ -21,6 +33,14 @@ PYTHON_EXEC="../env_scrapper/bin/python"
 total_images_downloaded=0
 declare -A images_per_term
 
+count_images_in_dir() {
+  find "$images_dir" -maxdepth 1 -type f | wc -l
+}
+
+sanitize_prefix() {
+  echo "$1" | tr ' /' '__'
+}
+
 echo -e "\n🚀 Iniciando download de imagens..."
 echo "Arquivo de termos: $filename"
 echo "Limite por termo: $limit"
@@ -28,18 +48,27 @@ echo ""
 
 # Itera por cada termo no arquivo
 while IFS= read -r search_term || [ -n "$search_term" ]; do
+  [ -z "$search_term" ] && continue
   echo -e "\n🔍 Termo: \"$search_term\""
+  images_before=$(count_images_in_dir)
+  prefix="$(sanitize_prefix "$search_term")"
 
-  $PYTHON_EXEC ./google-images-download/bing_scraper.py --search "$search_term" --limit $limit --download --chromedriver /usr/local/bin/chromedriver -i "$filename"
+  echo "🌐 Motor: Bing"
+  $PYTHON_EXEC ./google-images-download/bing_scraper.py --search "$search_term" --limit $limit --download --chromedriver /usr/local/bin/chromedriver -o "$images_dir" --flat_directory --prefix "bing_$prefix"
+  bing_status=$?
 
-  search_dir="$images_dir${search_term// /_}"
-  if [ -d "$search_dir" ]; then
-    images_downloaded=$(find "$search_dir" -type f | wc -l)
+  echo "🌐 Motor: Google"
+  $PYTHON_EXEC ./google-images-download/google_scraper.py --search "$search_term" --limit "$limit" --download --chromedriver /usr/local/bin/chromedriver -o "$images_dir" --flat_directory --prefix "google_$prefix"
+  google_status=$?
+
+  if [ $bing_status -eq 0 ] || [ $google_status -eq 0 ]; then
+    images_after=$(count_images_in_dir)
+    images_downloaded=$((images_after - images_before))
     images_per_term["$search_term"]=$images_downloaded
     total_images_downloaded=$((total_images_downloaded + images_downloaded))
     echo "Imagens baixadas: $images_downloaded"
   else
-    echo "⚠️  Diretório não encontrado: $search_dir"
+    echo "⚠️  Falha ao baixar imagens para o termo em todos os motores: $search_term"
     images_per_term["$search_term"]=0
   fi
 done < "$filename"
@@ -56,22 +85,7 @@ echo "Imagens salvas em: $images_dir"
 
 # Junta imagens se solicitado
 if [ "$junta" == "-join" ]; then
-  echo -e "\n🔗 Unindo imagens em um único diretório..."
-
-  while IFS= read -r line || [ -n "$line" ]; do
-    current_dir="$images_dir${line// /_}"
-    
-    if [ ! -d "$current_dir" ]; then
-      echo "⚠️  Diretório inexistente: $current_dir"
-      continue
-    fi
-
-    echo "Movendo imagens de: $current_dir"
-    mv "$current_dir"/* "$images_dir"
-    rmdir "$current_dir" && echo "Diretório removido: $current_dir"
-  done < "$filename"
-
-  echo -e "\n📦 Todas as imagens foram reunidas no diretório: $images_dir"
+  echo -e "\n📦 As imagens já foram salvas diretamente no diretório: $images_dir"
 fi
 
 echo -e "\n🏁 Concluído.\n"
