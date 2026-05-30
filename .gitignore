@@ -10,6 +10,7 @@ Avaliador/labels*
 #Avaliador/data.yaml*
 Avaliador/README.dataset*
 Avaliador/README.roboflow*
+datasets/
 
 __pycache__
 

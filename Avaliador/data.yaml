@@ -4,6 +4,13 @@ val: images/val
 test: test/images
 nc: 3
 names:
-  0: dinheiro
-  1: cedula_20_reais
-  2: cedula_50_reais
+  0: arma
+  1: faca
+  2: municao
+  3: dinheiro
+  4: maconha
+  5: cartao
+  6: documento
+  7: boleto
+  8: cartao
+  9: print

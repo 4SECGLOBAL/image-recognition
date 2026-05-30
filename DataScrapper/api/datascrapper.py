@@ -45,6 +45,10 @@ class ColetaLimpezaRequest(BaseModel):
         default=True,
         description="Equivale ao argumento --limpeza_visual do shell.",
     )
+    anonimo: bool = Field(
+        default=False,
+        description="Se true, executa o ChromeDriver em modo anonimo.",
+    )
 
     @field_validator("nome_lista")
     @classmethod
@@ -138,6 +142,8 @@ def executar_fluxo(payload: ColetaLimpezaRequest) -> ColetaLimpezaResponse:
         comando.append("--sem_limpeza")
     if payload.limpeza_visual:
         comando.append("--limpeza_visual")
+    if payload.anonimo:
+        comando.append("--anonimo")
 
     env = {
         **os.environ,

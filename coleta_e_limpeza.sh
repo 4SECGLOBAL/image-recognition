@@ -34,12 +34,16 @@ PYTHON_EXEC="./env_limpeza/bin/python"
 # Verifica flags opcionais
 limpeza_flag="true"
 limpeza_visual_flag=""
+anonimo_flag=""
 for arg in "$@"; do
   if [ "$arg" == "--sem_limpeza" ]; then
     limpeza_flag="false"
   fi
   if [ "$arg" == "--limpeza_visual" ]; then
     limpeza_visual_flag="--limpeza_visual"
+  fi
+  if [ "$arg" == "--anonimo" ]; then
+    anonimo_flag="--anonimo"
   fi
 done
 
@@ -50,11 +54,12 @@ echo "📸 Limite de imagens: $limite"
 echo "📏 Filtros de tamanho → mín: ${min_larg}x${min_alt}, máx: ${max_larg}x${max_alt}"
 [ "$limpeza_flag" == "false" ] && echo "🧹 Limpeza do dataset desativada."
 [ ! -z "$limpeza_visual_flag" ] && echo "🖼️  Modo de limpeza visual ativado!"
+[ ! -z "$anonimo_flag" ] && echo "🕶️  Modo anonimo ativado para o ChromeDriver!"
 
 # ▶️ Coleta das imagens
 echo -e "\n📥 => COLETA DE IMAGENS"
 cd DataScrapper
-./execute.sh "$termo_busca" "$limite" -join
+./execute.sh "$termo_busca" "$limite" -join $anonimo_flag
 cd ..
 
 if [ "$limpeza_flag" == "false" ]; then

@@ -26,8 +26,18 @@ fi
 # Parâmetros
 filename="$termos_dir$1.txt"
 limit="$2"
-junta="$3"
+junta=""
+anonimo_flag=""
 PYTHON_EXEC="../env_scrapper/bin/python"
+
+for arg in "${@:3}"; do
+  if [ "$arg" == "-join" ]; then
+    junta="-join"
+  fi
+  if [ "$arg" == "--anonimo" ]; then
+    anonimo_flag="--anonimo"
+  fi
+done
 
 # Contador
 total_images_downloaded=0
@@ -44,6 +54,7 @@ sanitize_prefix() {
 echo -e "\n🚀 Iniciando download de imagens..."
 echo "Arquivo de termos: $filename"
 echo "Limite por termo: $limit"
+[ ! -z "$anonimo_flag" ] && echo "Modo anonimo: ativado"
 echo ""
 
 # Itera por cada termo no arquivo
@@ -54,11 +65,11 @@ while IFS= read -r search_term || [ -n "$search_term" ]; do
   prefix="$(sanitize_prefix "$search_term")"
 
   echo "🌐 Motor: Bing"
-  $PYTHON_EXEC ./google-images-download/bing_scraper.py --search "$search_term" --limit $limit --download --chromedriver /usr/local/bin/chromedriver -o "$images_dir" --flat_directory --prefix "bing_$prefix"
+  $PYTHON_EXEC ./google-images-download/bing_scraper.py --search "$search_term" --limit $limit --download --chromedriver /usr/local/bin/chromedriver -o "$images_dir" --flat_directory --prefix "bing_$prefix" $anonimo_flag
   bing_status=$?
 
   echo "🌐 Motor: Google"
-  $PYTHON_EXEC ./google-images-download/google_scraper.py --search "$search_term" --limit "$limit" --download --chromedriver /usr/local/bin/chromedriver -o "$images_dir" --flat_directory --prefix "google_$prefix"
+  $PYTHON_EXEC ./google-images-download/google_scraper.py --search "$search_term" --limit "$limit" --download --chromedriver /usr/local/bin/chromedriver -o "$images_dir" --flat_directory --prefix "google_$prefix" $anonimo_flag
   google_status=$?
 
   if [ $bing_status -eq 0 ] || [ $google_status -eq 0 ]; then
