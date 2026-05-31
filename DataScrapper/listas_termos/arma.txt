@@ -1,11 +1,2 @@
-homem armado
-mulher armada
-jovem armado
-idoso armado
-arma encontrada
-arma guardada
-arma perdida
-arma policia
-arma policial
-arma exercito
-munição
+guns
+armas

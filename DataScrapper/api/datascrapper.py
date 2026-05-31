@@ -18,6 +18,7 @@ LISTAS_TERMOS_DIR = REPO_ROOT / "DataScrapper" / "listas_termos"
 IMAGES_DIR = REPO_ROOT / "DataScrapper" / "images"
 AUTO_ANNOTATE_LABELS_DIR = REPO_ROOT / "DataScrapper" / "images_auto_annotate_labels"
 SCRIPT_PATH = REPO_ROOT / "coleta_e_limpeza.sh"
+AUGMENT_TONALIDADES_SCRIPT_PATH = REPO_ROOT / "DataScrapper" / "augment_tonalidades.py"
 
 
 class ColetaLimpezaRequest(BaseModel):
@@ -92,6 +93,31 @@ class ColetaLimpezaResponse(BaseModel):
     imagens_resultantes: int
 
 
+class AugmentTonalidadesRequest(BaseModel):
+    nome_pasta: str = Field(
+        default="",
+        description="Nome da pasta em DataScrapper/images_auto_annotate_labels. Se vazio, usa a data de hoje.",
+        examples=["2026-05-30"],
+    )
+
+    @field_validator("nome_pasta")
+    @classmethod
+    def validar_nome_pasta(cls, value: str) -> str:
+        value = value.strip()
+        if value and not re.fullmatch(r"[A-Za-z0-9_-]+", value):
+            raise ValueError("Use apenas letras, numeros, hifen e underline.")
+        return value
+
+
+class AugmentTonalidadesResponse(BaseModel):
+    comando: list[str]
+    nome_pasta: str
+    input_dir: str
+    output_dir: str
+    returncode: int
+    imagens_resultantes: int
+
+
 router = APIRouter(prefix="/api/1/datascrapper", tags=["DataScrapper"])
 
 
@@ -114,12 +140,16 @@ def criar_diretorio_com_permissao(caminho: Path) -> Path:
 
 
 def criar_dirs_do_dia() -> tuple[Path, Path]:
-    hoje = datetime.now(timezone(timedelta(hours=-3))).date().isoformat()
+    hoje = obter_nome_pasta_hoje()
     images_dir = IMAGES_DIR / hoje
     labels_dir = AUTO_ANNOTATE_LABELS_DIR / hoje
     criar_diretorio_com_permissao(images_dir)
     criar_diretorio_com_permissao(labels_dir)
     return images_dir, labels_dir
+
+
+def obter_nome_pasta_hoje() -> str:
+    return datetime.now(timezone(timedelta(hours=-3))).date().isoformat()
 
 
 def executar_fluxo(payload: ColetaLimpezaRequest) -> ColetaLimpezaResponse:
@@ -198,6 +228,76 @@ def executar_fluxo(payload: ColetaLimpezaRequest) -> ColetaLimpezaResponse:
     return response
 
 
+def executar_augment_tonalidades(payload: AugmentTonalidadesRequest) -> AugmentTonalidadesResponse:
+    nome_pasta = payload.nome_pasta or obter_nome_pasta_hoje()
+    input_dir = AUTO_ANNOTATE_LABELS_DIR / nome_pasta
+    output_dir = AUTO_ANNOTATE_LABELS_DIR / f"{nome_pasta}_aug"
+
+    comando = [
+        sys.executable,
+        str(AUGMENT_TONALIDADES_SCRIPT_PATH),
+        payload.nome_pasta,
+    ]
+
+    processo = subprocess.Popen(
+        comando,
+        cwd=REPO_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        bufsize=1,
+    )
+
+    def encaminhar_stdout() -> None:
+        if processo.stdout is None:
+            return
+        for linha in processo.stdout:
+            sys.stdout.write(linha)
+            sys.stdout.flush()
+
+    def capturar_stderr() -> None:
+        if processo.stderr is None:
+            return
+        for linha in processo.stderr:
+            sys.stderr.write(linha)
+            sys.stderr.flush()
+
+    stdout_thread = threading.Thread(target=encaminhar_stdout)
+    stderr_thread = threading.Thread(target=capturar_stderr)
+    stdout_thread.start()
+    stderr_thread.start()
+
+    returncode = processo.wait()
+    stdout_thread.join()
+    stderr_thread.join()
+
+    response = AugmentTonalidadesResponse(
+        comando=comando,
+        nome_pasta=nome_pasta,
+        input_dir=str(input_dir.relative_to(REPO_ROOT)),
+        output_dir=str(output_dir.relative_to(REPO_ROOT)),
+        returncode=returncode,
+        imagens_resultantes=contar_imagens_em(output_dir),
+    )
+
+    if returncode != 0:
+        raise HTTPException(status_code=500, detail=response.model_dump())
+
+    return response
+
+
 @router.post("/coleta-e-limpeza", response_model=ColetaLimpezaResponse)
 async def coleta_e_limpeza(payload: ColetaLimpezaRequest) -> ColetaLimpezaResponse:
     return await run_in_threadpool(executar_fluxo, payload)
+
+
+@router.post(
+    "/augment-tonalidades",
+    response_model=AugmentTonalidadesResponse,
+    description=(
+        "Aplica augmentations de tonalidade nas imagens e labels YOLO. "
+        "Use este endpoint depois de concluir a anotacao YOLO em http://localhost:3000."
+    ),
+)
+async def augment_tonalidades(payload: AugmentTonalidadesRequest) -> AugmentTonalidadesResponse:
+    return await run_in_threadpool(executar_augment_tonalidades, payload)
