@@ -45,6 +45,11 @@ def azulado(img):
     return cv2.addWeighted(img, 0.75, overlay, 0.25, 0)
 
 
+def esverdeada(img):
+    overlay = np.full_like(img, (30, 80, 30))
+    return cv2.addWeighted(img, 0.75, overlay, 0.25, 0)
+
+
 def infravermelho_simulado(img):
     b, g, r = cv2.split(img)
     ir = cv2.merge([
@@ -174,10 +179,27 @@ def remover_background(img):
     return (img.astype(np.float32) * alpha + fundo_branco.astype(np.float32) * (1 - alpha)).astype(np.uint8)
 
 
+def rotacionada_90(img):
+    return cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+
+
+def rotacionada_180(img):
+    return cv2.rotate(img, cv2.ROTATE_180)
+
+
+def rotacionada_270(img):
+    return cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+
+def espelhada(img):
+    return cv2.flip(img, 1)
+
+
 TRANSFORMACOES = {
     "cinza": escala_cinza,
     "amarelado": amarelado,
     "azulado": azulado,
+    "esverdeada": esverdeada,
     "infravermelho": infravermelho_simulado,
     "claro": mais_claro,
     "escuro": mais_escuro,
@@ -189,6 +211,70 @@ TRANSFORMACOES = {
     "compressao_jpeg": compressao_jpeg,
     "cftv_noite": cftv_noite,
 }
+
+TRANSFORMACOES_GEOMETRICAS = {
+    "rot90": rotacionada_90,
+    "rot180": rotacionada_180,
+    "rot270": rotacionada_270,
+    "espelhada": espelhada,
+}
+
+
+def limitar_normalizado(valor: float) -> float:
+    return min(1.0, max(0.0, valor))
+
+
+def transformar_bbox_yolo(tipo_transformacao: str, x: float, y: float, largura: float, altura: float):
+    if tipo_transformacao == "rot90":
+        return 1 - y, x, altura, largura
+    if tipo_transformacao == "rot180":
+        return 1 - x, 1 - y, largura, altura
+    if tipo_transformacao == "rot270":
+        return y, 1 - x, altura, largura
+    if tipo_transformacao == "espelhada":
+        return 1 - x, y, largura, altura
+    return x, y, largura, altura
+
+
+def transformar_label_geometrico(label_origem: Path, label_destino: Path, tipo_transformacao: str) -> bool:
+    if not label_origem.exists():
+        print(f"AVISO: Label não encontrado: {label_origem}")
+        return False
+
+    linhas_transformadas = []
+    for linha in label_origem.read_text(encoding="utf-8").splitlines():
+        partes = linha.split()
+        if len(partes) < 5:
+            linhas_transformadas.append(linha)
+            continue
+
+        classe = partes[0]
+        try:
+            x, y, largura, altura = map(float, partes[1:5])
+        except ValueError:
+            linhas_transformadas.append(linha)
+            continue
+
+        novo_x, novo_y, nova_largura, nova_altura = transformar_bbox_yolo(
+            tipo_transformacao,
+            x,
+            y,
+            largura,
+            altura,
+        )
+        bbox = [
+            limitar_normalizado(novo_x),
+            limitar_normalizado(novo_y),
+            limitar_normalizado(nova_largura),
+            limitar_normalizado(nova_altura),
+        ]
+        extras = partes[5:]
+        linhas_transformadas.append(
+            " ".join([classe, *(f"{valor:.6f}" for valor in bbox), *extras])
+        )
+
+    label_destino.write_text("\n".join(linhas_transformadas) + "\n", encoding="utf-8")
+    return True
 
 
 def copiar_label(label_origem: Path, label_destino: Path):
@@ -265,7 +351,7 @@ def processar(nome_pasta: str):
     ]
 
     total_imagens = len(imagens)
-    total_transformacoes = len(TRANSFORMACOES) + 1
+    total_transformacoes = len(TRANSFORMACOES) + len(TRANSFORMACOES_GEOMETRICAS) + 1
     total_geradas = 0
     total_puladas = 0
     total_erros = 0
@@ -359,6 +445,52 @@ def processar(nome_pasta: str):
         print(
             f"OK: {nome_transformacao}: {geradas} geradas, "
             f"{puladas} puladas, {erros} erros em {duracao_transformacao:.1f}s"
+        )
+
+    inicio_geometricas = len(TRANSFORMACOES) + 1
+    for offset, (nome_transformacao, funcao) in enumerate(TRANSFORMACOES_GEOMETRICAS.items()):
+        indice_transformacao = inicio_geometricas + offset
+        inicio_transformacao = perf_counter()
+        geradas = 0
+        puladas = 0
+        erros = 0
+
+        print(f"\n[{indice_transformacao}/{total_transformacoes}] Aplicando: {nome_transformacao}")
+
+        for indice_imagem, img_path in enumerate(imagens, start=1):
+            img = cv2.imread(str(img_path))
+
+            if img is None:
+                print(f"  AVISO: [{indice_imagem}/{total_imagens}] Erro ao abrir imagem: {img_path.name}")
+                erros += 1
+                continue
+
+            stem = img_path.stem
+            suffix = img_path.suffix
+            label_original = input_labels_dir / f"{stem}.txt"
+            novo_stem = f"{stem}_{nome_transformacao}"
+            nova_imagem_destino = output_images_dir / f"{novo_stem}{suffix}"
+            novo_label_destino = output_labels_dir / f"{novo_stem}.txt"
+
+            nova_img = funcao(img)
+            if not cv2.imwrite(str(nova_imagem_destino), nova_img):
+                print(f"  AVISO: [{indice_imagem}/{total_imagens}] Erro ao salvar imagem: {nova_imagem_destino.name}")
+                erros += 1
+                continue
+
+            if not transformar_label_geometrico(label_original, novo_label_destino, nome_transformacao):
+                puladas += 1
+
+            geradas += 1
+
+        duracao_transformacao = perf_counter() - inicio_transformacao
+        total_geradas += geradas
+        total_puladas += puladas
+        total_erros += erros
+
+        print(
+            f"OK: {nome_transformacao}: {geradas} geradas, "
+            f"{puladas} labels ausentes/inalterados, {erros} erros em {duracao_transformacao:.1f}s"
         )
 
     if sem_fundo_future is not None and sem_fundo_executor is not None:
