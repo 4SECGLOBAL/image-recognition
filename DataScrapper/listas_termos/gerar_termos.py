@@ -30,20 +30,20 @@ class ArestaDeContexto():
 # Classe principal que representa o grafo das classes semânticas
 class GrafoDeClasses():
     def __init__(self, lista_classes):
-        self.n_classes = lista_classes.len()   # Número total de classes
+        self.n_classes = len(lista_classes)    # Número total de classes
         self.lista_nos = []                    # Lista de objetos NoDeClasse
         self.dict_classes = {}                 # Mapeia nome da classe para índice
 
         # Criação dos nós e mapeamento dos nomes
-        for i in range(n_classes):
+        for i in range(self.n_classes):
             self.lista_nos.append(NoDeClasse(i, lista_classes[i]))
             self.dict_classes[lista_classes[i]] = i
 
         # Inicialização da matriz de adjacência com arestas vazias (sem contextos)
         self.matriz_adj = []
-        for i in range(n_classes):
+        for i in range(self.n_classes):
             row = []
-            for j in range(n_classes):
+            for j in range(self.n_classes):
                 noA = self.lista_nos[i]
                 noB = self.lista_nos[j]
                 row.append(ArestaDeContexto(noA, noB, None))
@@ -99,7 +99,7 @@ def generate_search_terms():
     ]
 
     # Cria o grafo com 9 classes
-    grafo = GrafoDeClasses(9, lista_classes)
+    grafo = GrafoDeClasses(lista_classes)
 
     # Define os contextos entre pares de classes
     grafo.define_contexto("arma", "municao", ["trafico", "traficantes", "crime", "roubo", "assalto", "apreendido", "policia", "milicia"])

@@ -139,6 +139,32 @@ def criar_diretorio_com_permissao(caminho: Path) -> Path:
     return caminho
 
 
+def ajustar_dono_pelo_diretorio_pai(caminho: Path) -> None:
+    if not caminho.exists():
+        return
+
+    referencia = caminho.parent
+    try:
+        stat_referencia = referencia.stat()
+    except OSError:
+        return
+
+    uid = stat_referencia.st_uid
+    gid = stat_referencia.st_gid
+
+    caminhos = [caminho]
+    if caminho.is_dir():
+        caminhos.extend(caminho.rglob("*"))
+
+    for path in caminhos:
+        try:
+            os.chown(path, uid, gid)
+        except PermissionError:
+            return
+        except OSError:
+            continue
+
+
 def criar_dirs_do_dia() -> tuple[Path, Path]:
     hoje = obter_nome_pasta_hoje()
     images_dir = IMAGES_DIR / hoje
@@ -213,6 +239,10 @@ def executar_fluxo(payload: ColetaLimpezaRequest) -> ColetaLimpezaResponse:
     stdout_thread.join()
     stderr_thread.join()
 
+    ajustar_dono_pelo_diretorio_pai(images_dir)
+    ajustar_dono_pelo_diretorio_pai(labels_dir)
+    ajustar_dono_pelo_diretorio_pai(termos_path)
+
     response = ColetaLimpezaResponse(
         comando=comando,
         arquivo_termos=str(termos_path.relative_to(REPO_ROOT)),
@@ -270,6 +300,8 @@ def executar_augment_tonalidades(payload: AugmentTonalidadesRequest) -> AugmentT
     returncode = processo.wait()
     stdout_thread.join()
     stderr_thread.join()
+
+    ajustar_dono_pelo_diretorio_pai(output_dir)
 
     response = AugmentTonalidadesResponse(
         comando=comando,

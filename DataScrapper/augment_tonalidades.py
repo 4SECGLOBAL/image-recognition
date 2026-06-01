@@ -2,8 +2,10 @@ import argparse
 import cv2
 import numpy as np
 import shutil
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from datetime import datetime
+from time import perf_counter
 
 
 def parse_args():
@@ -25,6 +27,7 @@ def resolver_nome_pasta(nome_pasta: str) -> str:
 
 
 EXTENSOES = {".jpg", ".jpeg", ".png", ".webp", ".avif"}
+SEM_FUNDO_NOME = "sem_fundo"
 
 
 def escala_cinza(img):
@@ -111,6 +114,66 @@ def compressao_jpeg(img):
     )
     return cv2.imdecode(enc, cv2.IMREAD_COLOR)
 
+
+def fundo_ja_branco(img):
+    altura, largura = img.shape[:2]
+    borda = max(4, min(30, int(min(altura, largura) * 0.04)))
+
+    amostras = np.concatenate([
+        img[:borda, :, :].reshape(-1, 3),
+        img[-borda:, :, :].reshape(-1, 3),
+        img[:, :borda, :].reshape(-1, 3),
+        img[:, -borda:, :].reshape(-1, 3),
+    ])
+
+    pixels_brancos = np.all(amostras >= 245, axis=1)
+    return np.mean(pixels_brancos) >= 0.85
+
+
+def remover_background(img):
+    if fundo_ja_branco(img):
+        return None
+
+    altura, largura = img.shape[:2]
+    margem_x = max(1, int(largura * 0.05))
+    margem_y = max(1, int(altura * 0.05))
+    rect = (
+        margem_x,
+        margem_y,
+        max(1, largura - (2 * margem_x)),
+        max(1, altura - (2 * margem_y)),
+    )
+
+    mask = np.zeros((altura, largura), np.uint8)
+    bgd_model = np.zeros((1, 65), np.float64)
+    fgd_model = np.zeros((1, 65), np.float64)
+
+    try:
+        cv2.grabCut(img, mask, rect, bgd_model, fgd_model, 5, cv2.GC_INIT_WITH_RECT)
+    except cv2.error:
+        return img
+
+    foreground_mask = np.where(
+        (mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD),
+        255,
+        0,
+    ).astype(np.uint8)
+
+    area_foreground = np.mean(foreground_mask > 0)
+    if area_foreground < 0.02 or area_foreground > 0.98:
+        return img
+
+    kernel = np.ones((3, 3), np.uint8)
+    foreground_mask = cv2.morphologyEx(foreground_mask, cv2.MORPH_OPEN, kernel)
+    foreground_mask = cv2.morphologyEx(foreground_mask, cv2.MORPH_CLOSE, kernel)
+    foreground_mask = cv2.GaussianBlur(foreground_mask, (5, 5), 0)
+
+    alpha = foreground_mask.astype(np.float32) / 255.0
+    alpha = alpha[:, :, None]
+    fundo_branco = np.full_like(img, 255)
+    return (img.astype(np.float32) * alpha + fundo_branco.astype(np.float32) * (1 - alpha)).astype(np.uint8)
+
+
 TRANSFORMACOES = {
     "cinza": escala_cinza,
     "amarelado": amarelado,
@@ -131,8 +194,60 @@ TRANSFORMACOES = {
 def copiar_label(label_origem: Path, label_destino: Path):
     if label_origem.exists():
         shutil.copy(label_origem, label_destino)
+        return True
     else:
-        print(f"⚠️ Label não encontrado: {label_origem}")
+        print(f"AVISO: Label não encontrado: {label_origem}")
+        return False
+
+
+def processar_sem_fundo_em_lote(imagens, input_labels_dir, output_images_dir, output_labels_dir):
+    input_labels_dir = Path(input_labels_dir)
+    output_images_dir = Path(output_images_dir)
+    output_labels_dir = Path(output_labels_dir)
+    inicio = perf_counter()
+    geradas = 0
+    puladas = 0
+    erros = 0
+    labels_faltantes = 0
+
+    for img_path_str in imagens:
+        img_path = Path(img_path_str)
+        img = cv2.imread(str(img_path))
+
+        if img is None:
+            erros += 1
+            continue
+
+        nova_img = remover_background(img)
+        if nova_img is None:
+            puladas += 1
+            continue
+
+        stem = img_path.stem
+        suffix = img_path.suffix
+        novo_stem = f"{stem}_{SEM_FUNDO_NOME}"
+        nova_imagem_destino = output_images_dir / f"{novo_stem}{suffix}"
+        novo_label_destino = output_labels_dir / f"{novo_stem}.txt"
+
+        if not cv2.imwrite(str(nova_imagem_destino), nova_img):
+            erros += 1
+            continue
+
+        label_original = input_labels_dir / f"{stem}.txt"
+        if label_original.exists():
+            shutil.copy(label_original, novo_label_destino)
+        else:
+            labels_faltantes += 1
+
+        geradas += 1
+
+    return {
+        "geradas": geradas,
+        "puladas": puladas,
+        "erros": erros,
+        "labels_faltantes": labels_faltantes,
+        "duracao": perf_counter() - inicio,
+    }
 
 
 def processar(nome_pasta: str):
@@ -149,18 +264,30 @@ def processar(nome_pasta: str):
         if p.suffix.lower() in EXTENSOES
     ]
 
-    print(f"Encontradas {len(imagens)} imagens.")
+    total_imagens = len(imagens)
+    total_transformacoes = len(TRANSFORMACOES) + 1
+    total_geradas = 0
+    total_puladas = 0
+    total_erros = 0
+    inicio = perf_counter()
 
+    print("\nIniciando augmentation de tonalidades")
+    print(f"Entrada: {input_images_dir}")
+    print(f"Saída: {output_images_dir}")
+    print(f"Imagens encontradas: {total_imagens}")
+    print(f"Transformações: {total_transformacoes}")
+
+    print("\nCopiando imagens originais e labels...")
+    originais_copiadas = 0
     for img_path in imagens:
         img = cv2.imread(str(img_path))
 
         if img is None:
-            print(f"⚠️ Erro ao abrir imagem: {img_path}")
+            print(f"AVISO: Erro ao abrir imagem: {img_path}")
+            total_erros += 1
             continue
 
         stem = img_path.stem
-        suffix = img_path.suffix
-
         label_original = input_labels_dir / f"{stem}.txt"
 
         # salva imagem original no dataset aumentado
@@ -169,21 +296,98 @@ def processar(nome_pasta: str):
 
         cv2.imwrite(str(imagem_original_destino), img)
         copiar_label(label_original, label_original_destino)
+        originais_copiadas += 1
 
-        # salva imagens transformadas + labels correspondentes
-        for nome_transformacao, funcao in TRANSFORMACOES.items():
+    print(f"OK: Originais copiadas: {originais_copiadas}/{total_imagens}")
+
+    sem_fundo_executor = None
+    sem_fundo_future = None
+    if total_imagens > 0:
+        sem_fundo_executor = ProcessPoolExecutor(max_workers=1)
+        sem_fundo_future = sem_fundo_executor.submit(
+            processar_sem_fundo_em_lote,
+            [str(p) for p in imagens],
+            str(input_labels_dir),
+            str(output_images_dir),
+            str(output_labels_dir),
+        )
+        print(f"[{total_transformacoes}/{total_transformacoes}] {SEM_FUNDO_NOME} iniciado em processo paralelo.")
+
+    for indice_transformacao, (nome_transformacao, funcao) in enumerate(TRANSFORMACOES.items(), start=1):
+        inicio_transformacao = perf_counter()
+        geradas = 0
+        puladas = 0
+        erros = 0
+
+        print(f"\n[{indice_transformacao}/{total_transformacoes}] Aplicando: {nome_transformacao}")
+
+        for indice_imagem, img_path in enumerate(imagens, start=1):
+            img = cv2.imread(str(img_path))
+
+            if img is None:
+                print(f"  AVISO: [{indice_imagem}/{total_imagens}] Erro ao abrir imagem: {img_path.name}")
+                erros += 1
+                continue
+
+            stem = img_path.stem
+            suffix = img_path.suffix
+            label_original = input_labels_dir / f"{stem}.txt"
+
             nova_img = funcao(img)
+            if nova_img is None:
+                puladas += 1
+                continue
 
             novo_stem = f"{stem}_{nome_transformacao}"
             nova_imagem_destino = output_images_dir / f"{novo_stem}{suffix}"
             novo_label_destino = output_labels_dir / f"{novo_stem}.txt"
 
-            cv2.imwrite(str(nova_imagem_destino), nova_img)
+            if not cv2.imwrite(str(nova_imagem_destino), nova_img):
+                print(f"  AVISO: [{indice_imagem}/{total_imagens}] Erro ao salvar imagem: {nova_imagem_destino.name}")
+                erros += 1
+                continue
 
             # como só muda tonalidade, o label YOLO é igual
             copiar_label(label_original, novo_label_destino)
+            geradas += 1
 
-    print("✅ Augmentation concluído com imagens e labels YOLO.")
+        duracao_transformacao = perf_counter() - inicio_transformacao
+        total_geradas += geradas
+        total_puladas += puladas
+        total_erros += erros
+
+        print(
+            f"OK: {nome_transformacao}: {geradas} geradas, "
+            f"{puladas} puladas, {erros} erros em {duracao_transformacao:.1f}s"
+        )
+
+    if sem_fundo_future is not None and sem_fundo_executor is not None:
+        print(f"\nAguardando conclusão de {SEM_FUNDO_NOME}...")
+        try:
+            resultado_sem_fundo = sem_fundo_future.result()
+        finally:
+            sem_fundo_executor.shutdown()
+
+        total_geradas += resultado_sem_fundo["geradas"]
+        total_puladas += resultado_sem_fundo["puladas"]
+        total_erros += resultado_sem_fundo["erros"]
+
+        if resultado_sem_fundo["labels_faltantes"]:
+            print(f"AVISO: {SEM_FUNDO_NOME}: {resultado_sem_fundo['labels_faltantes']} labels não encontrados.")
+
+        print(
+            f"OK: {SEM_FUNDO_NOME}: {resultado_sem_fundo['geradas']} geradas, "
+            f"{resultado_sem_fundo['puladas']} puladas, "
+            f"{resultado_sem_fundo['erros']} erros em {resultado_sem_fundo['duracao']:.1f}s"
+        )
+
+    duracao_total = perf_counter() - inicio
+    print("\nAugmentation concluído com imagens e labels YOLO.")
+    print(f"Originais copiadas: {originais_copiadas}")
+    print(f"Transformadas geradas: {total_geradas}")
+    print(f"Transformações puladas: {total_puladas}")
+    print(f"Erros: {total_erros}")
+    print(f"Tempo total: {duracao_total:.1f}s")
 
 
 if __name__ == "__main__":
