@@ -53,6 +53,13 @@ python AutoAnotador/annotator.py ./DataScrapper/images/   --det_model yolov8n.pt
 
 Verificar a pasta `images_auto_annotable_lagels`.
 
+### 3.2. Correção anotação
+
+```sh
+# Troca qualquer classe para 0
+find . -type f -name "*.txt" -exec sed -i 's/^[0123456789]\([[:space:]]\)/0\1/' {} +
+```
+
 
 ## 3. Treinamento
 

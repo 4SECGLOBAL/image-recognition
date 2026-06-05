@@ -1,3 +1,1 @@
-arma pistola
-arma 38
-espingarda
+dinheiro drogas arma delegacia
