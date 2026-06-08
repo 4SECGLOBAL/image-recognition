@@ -47,23 +47,27 @@ class TrainResponse(BaseModel):
 class DistributeRequest(BaseModel):
     data: str | None = Field(
         default=None,
-        description="Data no formato YYYY-MM-DD. Se vazio, usa a data de hoje.",
+        description=(
+            "Data no formato YYYY-MM-DD usada para buscar "
+            "DataScrapper/images_auto_annotate_labels/<data>. "
+            "Se vazio, usa a data de hoje no fuso UTC-3."
+        ),
         examples=["2026-05-26"],
     )
 
 
 class SplitCount(BaseModel):
-    images: int
-    labels: int
+    images: int = Field(description="Quantidade de imagens copiadas para o split.")
+    labels: int = Field(description="Quantidade de labels copiadas para o split.")
 
 
 class DistributeResponse(BaseModel):
-    data: str
-    source_dir: str
-    total_pairs: int
-    train: SplitCount
-    val: SplitCount
-    test: SplitCount
+    data: str = Field(description="Data usada para localizar a pasta de origem.")
+    source_dir: str = Field(description="Pasta de origem com os pares imagem+label.")
+    total_pairs: int = Field(description="Total de pares imagem+label encontrados.")
+    train: SplitCount = Field(description="Arquivos copiados para Avaliador/images/train e Avaliador/labels/train.")
+    val: SplitCount = Field(description="Arquivos copiados para Avaliador/images/val e Avaliador/labels/val.")
+    test: SplitCount = Field(description="Arquivos copiados para Avaliador/test/images e Avaliador/test/labels.")
 
 
 router = APIRouter(prefix="/api/3/evaluator", tags=["Avaliador"])
@@ -298,6 +302,26 @@ async def treinar(payload: TrainRequest) -> TrainResponse:
     return await run_in_threadpool(executar_treino, payload)
 
 
-@router.post("/distribute", response_model=DistributeResponse)
+@router.post(
+    "/distribute",
+    response_model=DistributeResponse,
+    summary="Distribui imagens anotadas no dataset YOLO",
+    description=(
+        "Monta o dataset do Avaliador a partir dos pares imagem+label em "
+        "`DataScrapper/images_auto_annotate_labels/<data>`. "
+        "Recebe opcionalmente `data` no formato `YYYY-MM-DD`; se não for enviada, "
+        "usa a data de hoje no fuso UTC-3. Cada imagem precisa ter um `.txt` com "
+        "o mesmo nome base, por exemplo `foto.jpg` e `foto.txt`. "
+        "Após validar os pares, embaralha com seed fixa `42` e copia 70% para "
+        "`Avaliador/images/train` + `Avaliador/labels/train`, 20% para "
+        "`Avaliador/images/val` + `Avaliador/labels/val`, e 10% para "
+        "`Avaliador/test/images` + `Avaliador/test/labels`. "
+        "Antes da cópia, limpa das pastas de destino os arquivos antigos de "
+        "imagem e label correspondentes. Retorna a data usada, a pasta de "
+        "origem, o total de pares e as contagens por split. Retorna 400 quando "
+        "existem imagens sem label correspondente e 404 quando a pasta da data "
+        "não existe."
+    ),
+)
 async def distribuir(payload: DistributeRequest) -> DistributeResponse:
     return await run_in_threadpool(executar_distribuicao, payload)

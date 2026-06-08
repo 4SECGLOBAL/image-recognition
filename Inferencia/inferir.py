@@ -35,8 +35,8 @@ def inferir(model_path: str, image_path: str, output_path: str, conf: float | No
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Executa inferencia YOLO em uma imagem.")
-    parser.add_argument("--model", default="runs/detect/train-11/weights/best.pt", help="Caminho do modelo .pt treinado.")
-    parser.add_argument("--image", default="Inferencia/foto3.jpg", help="Caminho da imagem de entrada.")
+    parser.add_argument("--model", default="runs/detect/train-21/weights/best.pt", help="Caminho do modelo .pt treinado.")
+    parser.add_argument("--image", default="Inferencia/crime1.jpg", help="Caminho da imagem de entrada.")
     parser.add_argument("--output", default="Inferencia/resultado.jpg", help="Caminho da imagem de saida.")
     parser.add_argument("--conf", type=float, default=None, help="Confianca minima opcional, ex: 0.05.")
     args = parser.parse_args()

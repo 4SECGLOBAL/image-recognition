@@ -78,7 +78,27 @@ names:
 
 Corrigir manualmente as anotações (txt) para classes YOLOs que não correspondem à classe aqui treinada.
 
-Distribuição das imagens+anotações (endpoint distribute faz isso):
+Distribuição das imagens+anotações (endpoint `POST /api/3/evaluator/distribute` faz isso):
+
+O endpoint monta o dataset do Avaliador a partir das imagens já anotadas em
+`DataScrapper/images_auto_annotate_labels/<data>`. Ele recebe opcionalmente a
+data no formato `YYYY-MM-DD`; se a data não for enviada, usa a data de hoje no
+fuso UTC-3.
+
+Exemplo:
+```json
+{
+  "data": "2026-05-26"
+}
+```
+
+Para cada imagem encontrada na pasta da data, deve existir um label `.txt` com o
+mesmo nome base. Exemplo: `foto.jpg` precisa ter `foto.txt`. Se alguma imagem
+estiver sem label correspondente, o endpoint retorna erro `400`. Se a pasta da
+data não existir, retorna erro `404`.
+
+Depois de validar os pares imagem+label, o endpoint embaralha os pares com seed
+fixa `42`, para manter a divisão reproduzível, e distribui o dataset em:
 ```sh
 Avaliador/images/train     <- 70% das imagens
 Avaliador/labels/train     <- labels dessas imagens
@@ -89,6 +109,11 @@ Avaliador/labels/val       <- labels dessas imagens
 Avaliador/test/images      <- 10% das imagens
 Avaliador/test/labels      <- labels dessas imagens
 ```
+
+Antes de copiar os arquivos, ele limpa das pastas de destino os arquivos antigos
+de imagem e label correspondentes. A resposta informa a data usada, a pasta de
+origem, o total de pares encontrados e quantas imagens/labels foram colocadas em
+`train`, `val` e `test`.
 
 Hierarquia de pastas + `data.yaml` = Dataset:
 ```sh
@@ -117,7 +142,7 @@ Parâmetros do comando:
 
 - `yolo train`: executa o modo de treinamento do Ultralytics YOLO.
 - `data=Avaliador/data.yaml`: informa o arquivo YAML que descreve o dataset, com os caminhos de treino, validação, teste e nomes das classes.
-- `model=yolov8n.pt`: define o modelo base usado para iniciar o treinamento. Neste caso, `yolov8n.pt` é o YOLOv8 nano pré-treinado.
+- `model=yolov8n.pt`: define o modelo base usado para iniciar o treinamento. Neste caso, `yolov8n.pt` é o YOLOv8 nano pré-treinado. Modelo pré-treinado.
 - `epochs=1`: número de épocas de treinamento. Uma época significa passar uma vez por todo o conjunto de treino. Para teste rápido, `1` é suficiente; para treinamento real, usar mais épocas.
 - `batch=4`: quantidade de imagens processadas por vez. Valores maiores podem acelerar o treino, mas usam mais memória da GPU.
 - `imgsz=640`: tamanho para redimensionamento das imagens durante o treino. O padrão comum do YOLO é `640`.
@@ -139,6 +164,7 @@ python AutoAnotador/annotator.py Avaliador/test/images/ \
 
 ./avaliacao.sh Avaliador/data.yaml runs/detect/train-5/weights/best.pt Avaliador/test/ "" 0
 
+O `best.pt` é o resultado treinado, melhor modelo treinado.
 
 ## 5. Inferencia: Testar Detecção de Objeto usando o modelo
 

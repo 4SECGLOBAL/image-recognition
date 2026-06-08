@@ -5,6 +5,7 @@
 2: faca
 3: municao
 4: drogas
+
 5: cartao
 6: documento
 7: boleto
