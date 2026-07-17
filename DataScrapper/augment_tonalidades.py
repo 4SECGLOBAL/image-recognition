@@ -28,6 +28,11 @@ def resolver_nome_pasta(nome_pasta: str) -> str:
 
 EXTENSOES = {".jpg", ".jpeg", ".png", ".webp", ".avif"}
 SEM_FUNDO_NOME = "sem_fundo"
+ORIGINAL_NOME = "original"
+
+
+def nome_arquivo_augmentado(stem: str, transformacao: str) -> str:
+    return f"{stem}_{transformacao}__aug"
 
 
 def escala_cinza(img):
@@ -311,7 +316,7 @@ def processar_sem_fundo_em_lote(imagens, input_labels_dir, output_images_dir, ou
 
         stem = img_path.stem
         suffix = img_path.suffix
-        novo_stem = f"{stem}_{SEM_FUNDO_NOME}"
+        novo_stem = nome_arquivo_augmentado(stem, SEM_FUNDO_NOME)
         nova_imagem_destino = output_images_dir / f"{novo_stem}{suffix}"
         novo_label_destino = output_labels_dir / f"{novo_stem}.txt"
 
@@ -377,8 +382,9 @@ def processar(nome_pasta: str):
         label_original = input_labels_dir / f"{stem}.txt"
 
         # salva imagem original no dataset aumentado
-        imagem_original_destino = output_images_dir / img_path.name
-        label_original_destino = output_labels_dir / f"{stem}.txt"
+        novo_stem = nome_arquivo_augmentado(stem, ORIGINAL_NOME)
+        imagem_original_destino = output_images_dir / f"{novo_stem}{img_path.suffix}"
+        label_original_destino = output_labels_dir / f"{novo_stem}.txt"
 
         cv2.imwrite(str(imagem_original_destino), img)
         copiar_label(label_original, label_original_destino)
@@ -424,7 +430,7 @@ def processar(nome_pasta: str):
                 puladas += 1
                 continue
 
-            novo_stem = f"{stem}_{nome_transformacao}"
+            novo_stem = nome_arquivo_augmentado(stem, nome_transformacao)
             nova_imagem_destino = output_images_dir / f"{novo_stem}{suffix}"
             novo_label_destino = output_labels_dir / f"{novo_stem}.txt"
 
@@ -468,7 +474,7 @@ def processar(nome_pasta: str):
             stem = img_path.stem
             suffix = img_path.suffix
             label_original = input_labels_dir / f"{stem}.txt"
-            novo_stem = f"{stem}_{nome_transformacao}"
+            novo_stem = nome_arquivo_augmentado(stem, nome_transformacao)
             nova_imagem_destino = output_images_dir / f"{novo_stem}{suffix}"
             novo_label_destino = output_labels_dir / f"{novo_stem}.txt"
 

@@ -68,6 +68,48 @@ termo de busca 3
 
 **OBS**: o script *gerar_termos.py* possibilita a geração de uma combinação de duplas de classes associadas com contextos e sinônimos, acesse `./listas_termos/README.md` para mais informações sobre como utilizá-lo.
 
+### API para coleta e limpeza
+
+```text
+POST http://localhost:8001/api/1/datascrapper/coleta-e-limpeza?termo_busca=cedula%20de%2020%20reais%0Anota%20de%2050%20reais%0Adinheiro%20brasileiro
+```
+
+`termo_busca` e um parametro obrigatorio do endpoint, fora do body. Cada linha nao vazia ou trecho separado por `;` vira um termo de busca independente. O body fica somente com as configuracoes da coleta:
+
+```json
+{
+  "limite": 80,
+  "min_larg": 200,
+  "min_alt": 200,
+  "max_larg": 1280,
+  "max_alt": 720,
+  "limpeza": true,
+  "limpeza_visual": true,
+  "anonimo": false
+}
+```
+
+A resposta inclui `termos_submetidos`, com a lista normalizada dos termos que foram enviados para coleta.
+
+### API para gerar termos
+
+A API tambem pode gerar um arquivo de termos a partir de uma lista de classes:
+
+```text
+POST http://localhost:8001/api/1/datascrapper/gerar_termos
+```
+
+Exemplo de payload:
+
+```json
+{
+  "classes": "dinheiro, arma, faca, municao, drogas, cartao, documento, boleto, print"
+}
+```
+
+O endpoint cria `DataScrapper/listas_termos/Classes_e_contextos_<datahoje>.txt`
+e retorna o conteudo gerado no campo `conteudo`.
+
 ### Termo de busca único
 
 É possível realizar uma busca de um único termo, utilizando uma url ou termo de busca, com regulagem de número de imagens limite para fazer download:

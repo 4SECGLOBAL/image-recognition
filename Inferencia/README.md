@@ -80,8 +80,25 @@ Exemplo de payload:
 {
   "model": "runs/detect/train-11/weights/best.pt",
   "image": "Inferencia/foto3.jpg",
-  "confianca": 0.05
+  "confianca": 0.05,
+  "data_yaml": "Avaliador/data.yaml",
+  "label": "Avaliador/test/labels/foto3.txt",
+  "iou_threshold": 0.5
 }
 ```
 
 A resposta inclui `resultado_url`, apontando para a imagem salva em `Inferencia/resultado.jpg`.
+Quando a API encontra o arquivo `.txt` YOLO ground truth correspondente a imagem, tambem gera
+`Inferencia/matriz_confusao.jpg` e retorna os dados em `matriz_confusao`.
+
+O campo `label` e opcional. Se ele nao for enviado, a API procura um `.txt` com o mesmo nome da
+imagem em:
+
+- mesma pasta da imagem
+- `Avaliador/labels/train`
+- `Avaliador/labels/val`
+- `Avaliador/test/labels`
+- `Inferencia/labels`
+
+Se nenhum label ground truth for encontrado, a inferencia continua normalmente e
+`matriz_confusao.status` retorna `label_ground_truth_nao_encontrado`.

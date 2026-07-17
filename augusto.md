@@ -81,21 +81,21 @@ Corrigir manualmente as anotações (txt) para classes YOLOs que não correspond
 Distribuição das imagens+anotações (endpoint `POST /api/3/evaluator/distribute` faz isso):
 
 O endpoint monta o dataset do Avaliador a partir das imagens já anotadas em
-`DataScrapper/images_auto_annotate_labels/<data>`. Ele recebe opcionalmente a
-data no formato `YYYY-MM-DD`; se a data não for enviada, usa a data de hoje no
-fuso UTC-3.
+`DataScrapper/images_auto_annotate_labels/<data>`. Ele recebe opcionalmente em
+`data` o nome da pasta; se o campo não for enviado, usa a data de hoje no fuso
+UTC-3.
 
 Exemplo:
 ```json
 {
-  "data": "2026-05-26"
+  "data": "dataset-projeto"
 }
 ```
 
-Para cada imagem encontrada na pasta da data, deve existir um label `.txt` com o
+Para cada imagem encontrada na pasta informada, deve existir um label `.txt` com o
 mesmo nome base. Exemplo: `foto.jpg` precisa ter `foto.txt`. Se alguma imagem
-estiver sem label correspondente, o endpoint retorna erro `400`. Se a pasta da
-data não existir, retorna erro `404`.
+estiver sem label correspondente, o endpoint retorna erro `400`. Se a pasta
+informada não existir, retorna erro `404`.
 
 Depois de validar os pares imagem+label, o endpoint embaralha os pares com seed
 fixa `42`, para manter a divisão reproduzível, e distribui o dataset em:
@@ -111,7 +111,9 @@ Avaliador/test/labels      <- labels dessas imagens
 ```
 
 Antes de copiar os arquivos, ele limpa das pastas de destino os arquivos antigos
-de imagem e label correspondentes. A resposta informa a data usada, a pasta de
+de imagem e label correspondentes, além dos caches YOLO. Imagens cujo conteúdo
+real é AVIF são convertidas para JPEG, preservando dimensões, nome-base e o
+arquivo de anotação `.txt`. A resposta informa a data usada, a pasta de
 origem, o total de pares encontrados e quantas imagens/labels foram colocadas em
 `train`, `val` e `test`.
 

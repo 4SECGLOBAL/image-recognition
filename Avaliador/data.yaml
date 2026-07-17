@@ -2,10 +2,15 @@ path: /app/Avaliador
 train: images/train
 val: images/val
 test: test/images
-nc: 5
+nc: 10
 names:
   0: dinheiro
   1: arma
   2: faca
   3: municao
   4: drogas
+  5: cartao
+  6: documento
+  7: boleto
+  8: print
+  9: celular

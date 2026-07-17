@@ -1,3 +1,132 @@
+import re
+
+
+CONTEXTOS_PADRAO = {
+    frozenset(("arma", "municao")): ["trafico", "traficantes", "crime", "roubo", "assalto", "apreendido", "policia", "milicia"],
+    frozenset(("arma", "faca")): ["homem segurando", "pessoa segurando", "apreendido", "policia"],
+    frozenset(("arma", "drogas")): ["trafico", "traficantes", "crime", "apreendido", "policia", "milicia"],
+    frozenset(("arma", "maconha")): ["homem segurando", "pessoa segurando", "trafico", "traficantes", "crime", "apreendido", "policia"],
+    frozenset(("arma", "dinheiro")): ["homem segurando", "pessoa segurando", "apreendido", "policia"],
+    frozenset(("municao", "drogas")): ["trafico", "traficantes", "crime", "apreendido", "policia", "milicia"],
+    frozenset(("municao", "maconha")): ["trafico", "traficantes", "crime", "apreendido", "policia", "milicia"],
+    frozenset(("dinheiro", "drogas")): ["trafico", "traficantes", "crime", "apreendido", "policia", "milicia"],
+    frozenset(("dinheiro", "maconha")): ["trafico", "traficantes", "crime", "apreendido", "policia", "milicia"],
+    frozenset(("dinheiro", "cartao")): ["na mesa", "apreendido", "policia"],
+    frozenset(("dinheiro", "boleto")): ["na mesa"],
+    frozenset(("dinheiro", "documento")): ["na mesa", "policia"],
+    frozenset(("cartao", "documento")): ["na mesa"],
+    frozenset(("cartao", "boleto")): ["na mesa"],
+    frozenset(("documento", "boleto")): ["na mesa"],
+    frozenset(("print", "documento")): ["na tela"],
+    frozenset(("print", "boleto")): ["na tela"],
+    frozenset(("print", "cartao")): ["na tela"],
+    frozenset(("dinheiro", "celular")): ["na mesa", "apreendido", "policia"],
+    frozenset(("arma", "celular")): ["apreendido", "policia", "roubo", "assalto"],
+    frozenset(("faca", "celular")): ["apreendido", "policia", "roubo", "assalto"],
+    frozenset(("municao", "celular")): ["apreendido", "policia"],
+    frozenset(("drogas", "celular")): ["trafico", "traficantes", "crime", "apreendido", "policia"],
+    frozenset(("cartao", "celular")): ["na mesa"],
+    frozenset(("documento", "celular")): ["na mesa"],
+    frozenset(("boleto", "celular")): ["na tela"],
+    frozenset(("print", "celular")): ["na tela"],
+}
+SINONIMOS_PADRAO = {
+    "arma": ["revolver", "pistola"],
+    "drogas": ["maconha", "entorpecentes"],
+}
+
+
+def normalizar_lista_classes(value: str) -> list[str]:
+    classes = []
+    vistos = set()
+    for classe in re.split(r"[,\n]+", value):
+        classe_normalizada = re.sub(r"\s+", " ", classe.strip().lower())
+        if not classe_normalizada or classe_normalizada in vistos:
+            continue
+        if not re.fullmatch(r"[\wÀ-ÿ -]+", classe_normalizada):
+            raise ValueError("Use apenas letras, numeros, espacos, hifen e underline nas classes.")
+        classes.append(classe_normalizada)
+        vistos.add(classe_normalizada)
+    return classes
+
+
+class GeradorTermosBusca:
+    def __init__(self, contextos=None, sinonimos=None):
+        self.contextos = contextos or CONTEXTOS_PADRAO
+        self.sinonimos = sinonimos or SINONIMOS_PADRAO
+
+    def gerar(self, classes: str | list[str]) -> list[str]:
+        classes_normalizadas = self.normalizar_classes(classes)
+        termos = []
+        vistos = set()
+
+        for indice_a, classe_a in enumerate(classes_normalizadas):
+            for classe_b in classes_normalizadas[indice_a + 1 :]:
+                contextos = self.contextos.get(frozenset((classe_a, classe_b)), [])
+                pares = [(classe_a, classe_b)]
+
+                for sinonimo in self.sinonimos.get(classe_a, []):
+                    pares.append((sinonimo, classe_b))
+                for sinonimo in self.sinonimos.get(classe_b, []):
+                    pares.append((classe_a, sinonimo))
+
+                for termo_a, termo_b in pares:
+                    self._adicionar_termo(termos, vistos, f"{termo_a} e {termo_b}")
+                    for contexto in contextos:
+                        self._adicionar_termo(termos, vistos, f"{termo_a} e {termo_b} {contexto}")
+
+        return termos
+
+    def normalizar_classes(self, classes: str | list[str]) -> list[str]:
+        if isinstance(classes, str):
+            return normalizar_lista_classes(classes)
+        return normalizar_lista_classes(",".join(classes))
+
+    def gerar_classes_e_sinonimos(self, classes: str | list[str]) -> dict[str, list[str]]:
+        return {classe: self.sinonimos.get(classe, []) for classe in self.normalizar_classes(classes)}
+
+    def gerar_correlacoes_entre_classes(self, classes: str | list[str]) -> list[dict[str, object]]:
+        classes_normalizadas = self.normalizar_classes(classes)
+        correlacoes = []
+        for indice_a, classe_a in enumerate(classes_normalizadas):
+            for classe_b in classes_normalizadas[indice_a + 1 :]:
+                correlacoes.append(
+                    {
+                        "classe_a": classe_a,
+                        "classe_b": classe_b,
+                        "contextos": self.contextos.get(frozenset((classe_a, classe_b)), []),
+                    }
+                )
+        return correlacoes
+
+    def gerar_conteudo(self, classes: str | list[str], delimitador: str = ";") -> str:
+        linhas = ["# Classes e sinônimos"]
+
+        for classe, sinonimos in self.gerar_classes_e_sinonimos(classes).items():
+            if sinonimos:
+                linhas.append(f"{classe}: {', '.join(sinonimos)}")
+            else:
+                linhas.append(classe)
+
+        linhas.extend(["", "# Correlações entre classes"])
+        for correlacao in self.gerar_correlacoes_entre_classes(classes):
+            contextos = correlacao["contextos"]
+            linha = f"{correlacao['classe_a']} + {correlacao['classe_b']}"
+            if contextos:
+                linha += f": {', '.join(contextos)}"
+            linhas.append(linha)
+
+        linhas.extend(["", "# Termos de busca", *self.gerar(classes)])
+        return "\n".join(f"{linha}{delimitador}" if linha else "" for linha in linhas) + "\n"
+
+    @staticmethod
+    def _adicionar_termo(termos: list[str], vistos: set[str], termo: str) -> None:
+        termo = re.sub(r"\s+", " ", termo.strip())
+        if termo and termo not in vistos:
+            termos.append(termo)
+            vistos.add(termo)
+
+
 # Classe que representa um nó no grafo, ou seja, uma classe semântica (ex: "arma", "dinheiro", etc.)
 class NoDeClasse():
     def __init__(self, numero, nome):
@@ -122,5 +251,5 @@ def generate_search_terms():
     # Gera e imprime os termos de busca baseados nos contextos e sinônimos
     grafo.escreve_termos()
 
-# Executa a função principal
-generate_search_terms()
+if __name__ == "__main__":
+    generate_search_terms()

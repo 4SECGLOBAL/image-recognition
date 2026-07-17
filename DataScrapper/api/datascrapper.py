@@ -8,9 +8,11 @@ import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 from starlette.concurrency import run_in_threadpool
+
+from DataScrapper.listas_termos.gerar_termos import GeradorTermosBusca, normalizar_lista_classes
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -26,12 +28,6 @@ class ColetaLimpezaRequest(BaseModel):
         default="api_termos",
         description="Nome do arquivo .txt temporario criado em DataScrapper/listas_termos, sem extensao.",
         examples=["Dinheiro"],
-    )
-    termo_busca: str = Field(
-        ...,
-        description="Conteudo que substitui o argumento shell termo_busca. Informe os termos separados por virgula.",
-        examples=["cedula de 20 reais, nota de 50 reais, dinheiro brasileiro"],
-        json_schema_extra={"format": "textarea"},
     )
     limite: int = Field(default=80, ge=1, description="Limite de imagens por termo.")
     min_larg: int = Field(default=200, ge=1, description="Largura minima aceita.")
@@ -59,14 +55,6 @@ class ColetaLimpezaRequest(BaseModel):
             raise ValueError("Use apenas letras, numeros, hifen e underline.")
         return value
 
-    @field_validator("termo_busca")
-    @classmethod
-    def validar_termo_busca(cls, value: str) -> str:
-        termos = [termo.strip() for termo in re.split(r"[,\n]+", value) if termo.strip()]
-        if not termos:
-            raise ValueError("Informe pelo menos um termo de busca.")
-        return "\n".join(termos) + "\n"
-
     @field_validator("max_larg")
     @classmethod
     def validar_largura_maxima(cls, value: int, info) -> int:
@@ -90,7 +78,33 @@ class ColetaLimpezaResponse(BaseModel):
     images_dir: str
     auto_annotate_labels_dir: str
     returncode: int
+    termos_submetidos: list[str]
     imagens_resultantes: int
+
+
+class GerarTermosRequest(BaseModel):
+    classes: str = Field(
+        ...,
+        description="Classes separadas por virgula ou quebra de linha.",
+        examples=["dinheiro, arma, faca, municao, drogas, cartao, documento, boleto, print"],
+        json_schema_extra={"format": "textarea"},
+    )
+
+    @field_validator("classes")
+    @classmethod
+    def validar_classes(cls, value: str) -> str:
+        classes = normalizar_lista_classes(value)
+        if len(classes) < 2:
+            raise ValueError("Informe pelo menos duas classes.")
+        return ", ".join(classes)
+
+
+class GerarTermosResponse(BaseModel):
+    arquivo_termos: str
+    data: str
+    classes: list[str]
+    total_termos: int
+    conteudo: str
 
 
 class AugmentTonalidadesRequest(BaseModel):
@@ -119,6 +133,7 @@ class AugmentTonalidadesResponse(BaseModel):
 
 
 router = APIRouter(prefix="/api/1/datascrapper", tags=["DataScrapper"])
+gerador_termos_busca = GeradorTermosBusca()
 
 
 def contar_imagens() -> int:
@@ -178,12 +193,44 @@ def obter_nome_pasta_hoje() -> str:
     return datetime.now(timezone(timedelta(hours=-3))).date().isoformat()
 
 
-def executar_fluxo(payload: ColetaLimpezaRequest) -> ColetaLimpezaResponse:
+def normalizar_termo_busca(value: str) -> tuple[str, list[str]]:
+    termos = [termo.strip() for termo in re.split(r"[;\n]+", value) if termo.strip()]
+    if not termos:
+        raise HTTPException(status_code=422, detail="Informe pelo menos um termo de busca.")
+    return "\n".join(f"{termo};" for termo in termos) + "\n", termos
+
+
+def executar_gerar_termos(payload: GerarTermosRequest) -> GerarTermosResponse:
+    data = obter_nome_pasta_hoje()
+    classes = normalizar_lista_classes(payload.classes)
+    termos = gerador_termos_busca.gerar(classes)
+    conteudo = gerador_termos_busca.gerar_conteudo(classes)
+
+    LISTAS_TERMOS_DIR.mkdir(parents=True, exist_ok=True)
+    termos_path = LISTAS_TERMOS_DIR / f"Classes_e_contextos_{data}.txt"
+    termos_path.write_text(conteudo, encoding="utf-8")
+    ajustar_dono_pelo_diretorio_pai(termos_path)
+
+    return GerarTermosResponse(
+        arquivo_termos=str(termos_path.relative_to(REPO_ROOT)),
+        data=data,
+        classes=classes,
+        total_termos=len(termos),
+        conteudo=conteudo,
+    )
+
+
+def executar_fluxo(payload: ColetaLimpezaRequest, termo_busca: str, termos_submetidos: list[str]) -> ColetaLimpezaResponse:
+    print("\nTermos submetidos para coleta:")
+    for indice, termo in enumerate(termos_submetidos, start=1):
+        print(f"{indice}. {termo}")
+    sys.stdout.flush()
+
     LISTAS_TERMOS_DIR.mkdir(parents=True, exist_ok=True)
     images_dir, labels_dir = criar_dirs_do_dia()
 
     termos_path = LISTAS_TERMOS_DIR / f"{payload.nome_lista}.txt"
-    termos_path.write_text(payload.termo_busca, encoding="utf-8")
+    termos_path.write_text(termo_busca, encoding="utf-8")
 
     comando = [
         str(SCRIPT_PATH),
@@ -249,6 +296,7 @@ def executar_fluxo(payload: ColetaLimpezaRequest) -> ColetaLimpezaResponse:
         images_dir=str(images_dir.relative_to(REPO_ROOT)),
         auto_annotate_labels_dir=str(labels_dir.relative_to(REPO_ROOT)),
         returncode=returncode,
+        termos_submetidos=termos_submetidos,
         imagens_resultantes=contar_imagens_em(images_dir),
     )
 
@@ -319,8 +367,24 @@ def executar_augment_tonalidades(payload: AugmentTonalidadesRequest) -> AugmentT
 
 
 @router.post("/coleta-e-limpeza", response_model=ColetaLimpezaResponse)
-async def coleta_e_limpeza(payload: ColetaLimpezaRequest) -> ColetaLimpezaResponse:
-    return await run_in_threadpool(executar_fluxo, payload)
+async def coleta_e_limpeza(
+    payload: ColetaLimpezaRequest,
+    termo_busca: str = Query(
+        ...,
+        description=(
+            "Texto obrigatorio com os termos de busca. Cada linha nao vazia "
+            "sera usada como um termo de busca independente."
+        ),
+        examples=["cedula de 20 reais\nnota de 50 reais\ndinheiro brasileiro"],
+    ),
+) -> ColetaLimpezaResponse:
+    termo_busca_normalizado, termos_submetidos = normalizar_termo_busca(termo_busca)
+    return await run_in_threadpool(executar_fluxo, payload, termo_busca_normalizado, termos_submetidos)
+
+
+@router.post("/gerar_termos", response_model=GerarTermosResponse)
+async def gerar_termos(payload: GerarTermosRequest) -> GerarTermosResponse:
+    return await run_in_threadpool(executar_gerar_termos, payload)
 
 
 @router.post(

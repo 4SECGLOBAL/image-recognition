@@ -5,11 +5,13 @@ import shutil
 import subprocess
 import sys
 import threading
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import yaml
 from fastapi import APIRouter, HTTPException
+from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
@@ -48,11 +50,11 @@ class DistributeRequest(BaseModel):
     data: str | None = Field(
         default=None,
         description=(
-            "Data no formato YYYY-MM-DD usada para buscar "
+            "Nome da pasta usada para buscar "
             "DataScrapper/images_auto_annotate_labels/<data>. "
             "Se vazio, usa a data de hoje no fuso UTC-3."
         ),
-        examples=["2026-05-26"],
+        examples=["dataset-projeto"],
     )
 
 
@@ -68,6 +70,39 @@ class DistributeResponse(BaseModel):
     train: SplitCount = Field(description="Arquivos copiados para Avaliador/images/train e Avaliador/labels/train.")
     val: SplitCount = Field(description="Arquivos copiados para Avaliador/images/val e Avaliador/labels/val.")
     test: SplitCount = Field(description="Arquivos copiados para Avaliador/test/images e Avaliador/test/labels.")
+
+
+class ClassImageInstance(BaseModel):
+    split: str = Field(description="Split do dataset: train, val ou test.")
+    image: str = Field(description="Nome da imagem correspondente ao arquivo de anotacao.")
+    label: str = Field(description="Nome do arquivo .txt de anotacao.")
+    instances: int = Field(description="Quantidade de anotacoes desta classe nesta imagem.")
+
+
+class ClassSplitSummary(BaseModel):
+    annotations: int = Field(description="Quantidade de anotacoes da classe no split.")
+    images: int = Field(description="Quantidade de imagens que possuem pelo menos uma anotacao da classe no split.")
+
+
+class ClassAnnotationSummary(BaseModel):
+    id: int = Field(description="ID numerico da classe YOLO.")
+    name: str = Field(description="Nome da classe definido no data.yaml.")
+    annotations: int = Field(description="Quantidade total de anotacoes da classe.")
+    images: int = Field(description="Quantidade total de imagens que possuem pelo menos uma anotacao da classe.")
+    splits: dict[str, ClassSplitSummary] = Field(description="Resumo por split.")
+    instances_by_image: list[ClassImageInstance] = Field(
+        description="Para cada imagem em que a classe aparece, quantas instancias foram anotadas."
+    )
+
+
+class EvaluatorDatasetSummary(BaseModel):
+    data_yaml: str = Field(description="Caminho do data.yaml lido.")
+    label_dirs: dict[str, str] = Field(description="Pastas de labels analisadas por split.")
+    total_label_files: int = Field(description="Quantidade total de arquivos .txt lidos.")
+    classes: list[ClassAnnotationSummary] = Field(description="Resumo das anotacoes para cada classe YOLO.")
+    unknown_annotations: dict[int, int] = Field(
+        description="Anotacoes encontradas para IDs de classe que nao existem no data.yaml."
+    )
 
 
 router = APIRouter(prefix="/api/3/evaluator", tags=["Avaliador"])
@@ -89,12 +124,10 @@ def data_hoje() -> str:
 
 
 def normalizar_data(data: str | None) -> str:
-    data_normalizada = (data or "").strip() or data_hoje()
-    try:
-        datetime.strptime(data_normalizada, "%Y-%m-%d")
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Data invalida. Use o formato YYYY-MM-DD.") from exc
-    return data_normalizada
+    nome_pasta = (data or "").strip() or data_hoje()
+    if nome_pasta in {".", ".."} or Path(nome_pasta).name != nome_pasta or "\\" in nome_pasta or "\0" in nome_pasta:
+        raise HTTPException(status_code=400, detail="Nome de pasta invalido.")
+    return nome_pasta
 
 
 def montar_comando(payload: TrainRequest) -> tuple[list[str], Path, Path]:
@@ -168,6 +201,139 @@ def normalizar_data_yaml(data_path: Path) -> None:
         yaml.safe_dump(data, data_file, allow_unicode=True, sort_keys=False)
 
 
+def carregar_classes_yolo(data_path: Path) -> dict[int, str]:
+    if not data_path.exists():
+        raise HTTPException(status_code=400, detail=f"data.yaml nao encontrado: {data_path}")
+
+    with data_path.open("r", encoding="utf-8") as data_file:
+        data = yaml.safe_load(data_file) or {}
+
+    names = data.get("names") or {}
+    if isinstance(names, list):
+        return {index: str(name) for index, name in enumerate(names)}
+
+    if isinstance(names, dict):
+        try:
+            return {int(class_id): str(name) for class_id, name in names.items()}
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="IDs de classe invalidos em data.yaml.") from exc
+
+    raise HTTPException(status_code=400, detail="Campo names invalido ou ausente em data.yaml.")
+
+
+def ler_classe_anotacao(label_path: Path, line_number: int, line: str) -> int:
+    parts = line.split()
+    if not parts:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Anotacao invalida em {caminho_relativo(label_path)}:{line_number}.",
+        )
+
+    try:
+        return int(parts[0])
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Classe YOLO invalida em {caminho_relativo(label_path)}:{line_number}.",
+        ) from exc
+
+
+def localizar_imagem(image_dir: Path, label_path: Path) -> str:
+    base_name = label_path.with_suffix("").name
+    for extension in IMAGE_EXTENSIONS:
+        image_path = image_dir / f"{base_name}{extension}"
+        if image_path.exists():
+            return image_path.name
+    return base_name
+
+
+def executar_resumo_dataset() -> EvaluatorDatasetSummary:
+    data_path = AVALIADOR_DIR / "data.yaml"
+    classes = carregar_classes_yolo(data_path)
+    label_dirs = {
+        "train": AVALIADOR_DIR / "labels" / "train",
+        "val": AVALIADOR_DIR / "labels" / "val",
+        "test": AVALIADOR_DIR / "test" / "labels",
+    }
+    image_dirs = {
+        "train": AVALIADOR_DIR / "images" / "train",
+        "val": AVALIADOR_DIR / "images" / "val",
+        "test": AVALIADOR_DIR / "test" / "images",
+    }
+
+    annotations_by_class: Counter[int] = Counter()
+    images_by_class: dict[int, set[str]] = defaultdict(set)
+    annotations_by_split_class: dict[str, Counter[int]] = defaultdict(Counter)
+    images_by_split_class: dict[str, dict[int, set[str]]] = defaultdict(lambda: defaultdict(set))
+    instances_by_class_image: dict[int, list[ClassImageInstance]] = defaultdict(list)
+    unknown_annotations: Counter[int] = Counter()
+    total_label_files = 0
+
+    for split, label_dir in label_dirs.items():
+        if not label_dir.exists():
+            continue
+
+        for label_path in sorted(label_dir.glob("*.txt")):
+            total_label_files += 1
+            image_name = localizar_imagem(image_dirs[split], label_path)
+            class_counts: Counter[int] = Counter()
+
+            with label_path.open("r", encoding="utf-8") as label_file:
+                for line_number, raw_line in enumerate(label_file, start=1):
+                    line = raw_line.strip()
+                    if not line:
+                        continue
+
+                    class_id = ler_classe_anotacao(label_path, line_number, line)
+                    class_counts[class_id] += 1
+
+            for class_id, instances in class_counts.items():
+                if class_id not in classes:
+                    unknown_annotations[class_id] += instances
+                    continue
+
+                annotations_by_class[class_id] += instances
+                images_by_class[class_id].add(f"{split}/{image_name}")
+                annotations_by_split_class[split][class_id] += instances
+                images_by_split_class[split][class_id].add(image_name)
+                instances_by_class_image[class_id].append(
+                    ClassImageInstance(
+                        split=split,
+                        image=image_name,
+                        label=label_path.name,
+                        instances=instances,
+                    )
+                )
+
+    summaries = []
+    for class_id, name in sorted(classes.items()):
+        splits = {
+            split: ClassSplitSummary(
+                annotations=annotations_by_split_class[split][class_id],
+                images=len(images_by_split_class[split][class_id]),
+            )
+            for split in label_dirs
+        }
+        summaries.append(
+            ClassAnnotationSummary(
+                id=class_id,
+                name=name,
+                annotations=annotations_by_class[class_id],
+                images=len(images_by_class[class_id]),
+                splits=splits,
+                instances_by_image=instances_by_class_image[class_id],
+            )
+        )
+
+    return EvaluatorDatasetSummary(
+        data_yaml=caminho_relativo(data_path),
+        label_dirs={split: caminho_relativo(path) for split, path in label_dirs.items()},
+        total_label_files=total_label_files,
+        classes=summaries,
+        unknown_annotations=dict(sorted(unknown_annotations.items())),
+    )
+
+
 def listar_pares_anotados(source_dir: Path) -> list[tuple[Path, Path]]:
     imagens = sorted(path for path in source_dir.iterdir() if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS)
     pares: list[tuple[Path, Path]] = []
@@ -196,12 +362,56 @@ def preparar_diretorio(destino: Path, extensoes: set[str]) -> None:
             path.unlink()
 
 
-def copiar_split(pares: list[tuple[Path, Path]], images_dir: Path, labels_dir: Path) -> SplitCount:
+def identificar_imagens_avif(pares: list[tuple[Path, Path]]) -> set[Path]:
+    imagens_avif: set[Path] = set()
+
+    for image_path, _ in pares:
+        try:
+            with Image.open(image_path) as image:
+                if (image.format or "").upper() == "AVIF":
+                    image.load()
+                    imagens_avif.add(image_path)
+        except (OSError, UnidentifiedImageError, ValueError) as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Imagem invalida ou nao suportada: {image_path.name}",
+            ) from exc
+
+    return imagens_avif
+
+
+def converter_avif_para_jpeg(origem: Path, destino: Path) -> None:
+    with Image.open(origem) as image:
+        if image.mode in {"RGBA", "LA"} or "transparency" in image.info:
+            rgba = image.convert("RGBA")
+            rgb = Image.new("RGB", rgba.size, "white")
+            rgb.paste(rgba, mask=rgba.getchannel("A"))
+        else:
+            rgb = image.convert("RGB")
+
+        rgb.save(destino, format="JPEG", quality=95, subsampling=0)
+
+
+def limpar_cache_yolo(labels_dir: Path) -> None:
+    cache_path = labels_dir.parent / f"{labels_dir.name}.cache"
+    cache_path.unlink(missing_ok=True)
+
+
+def copiar_split(
+    pares: list[tuple[Path, Path]],
+    images_dir: Path,
+    labels_dir: Path,
+    imagens_avif: set[Path],
+) -> SplitCount:
     preparar_diretorio(images_dir, IMAGE_EXTENSIONS)
     preparar_diretorio(labels_dir, {".txt"})
+    limpar_cache_yolo(labels_dir)
 
     for image_path, label_path in pares:
-        shutil.copy2(image_path, images_dir / image_path.name)
+        if image_path in imagens_avif:
+            converter_avif_para_jpeg(image_path, images_dir / f"{image_path.stem}.jpg")
+        else:
+            shutil.copy2(image_path, images_dir / image_path.name)
         shutil.copy2(label_path, labels_dir / label_path.name)
 
     return SplitCount(images=len(pares), labels=len(pares))
@@ -215,6 +425,7 @@ def executar_distribuicao(payload: DistributeRequest) -> DistributeResponse:
         raise HTTPException(status_code=404, detail=f"Pasta de anotacoes nao encontrada: {source_dir}")
 
     pares = listar_pares_anotados(source_dir)
+    imagens_avif = identificar_imagens_avif(pares)
     random.Random(42).shuffle(pares)
 
     total = len(pares)
@@ -226,9 +437,24 @@ def executar_distribuicao(payload: DistributeRequest) -> DistributeResponse:
     val_pairs = pares[train_count : train_count + val_count]
     test_pairs = pares[train_count + val_count : train_count + val_count + test_count]
 
-    train = copiar_split(train_pairs, AVALIADOR_DIR / "images" / "train", AVALIADOR_DIR / "labels" / "train")
-    val = copiar_split(val_pairs, AVALIADOR_DIR / "images" / "val", AVALIADOR_DIR / "labels" / "val")
-    test = copiar_split(test_pairs, AVALIADOR_DIR / "test" / "images", AVALIADOR_DIR / "test" / "labels")
+    train = copiar_split(
+        train_pairs,
+        AVALIADOR_DIR / "images" / "train",
+        AVALIADOR_DIR / "labels" / "train",
+        imagens_avif,
+    )
+    val = copiar_split(
+        val_pairs,
+        AVALIADOR_DIR / "images" / "val",
+        AVALIADOR_DIR / "labels" / "val",
+        imagens_avif,
+    )
+    test = copiar_split(
+        test_pairs,
+        AVALIADOR_DIR / "test" / "images",
+        AVALIADOR_DIR / "test" / "labels",
+        imagens_avif,
+    )
 
     return DistributeResponse(
         data=data,
@@ -297,6 +523,11 @@ def executar_treino(payload: TrainRequest) -> TrainResponse:
     return response
 
 
+@router.get("/", response_model=EvaluatorDatasetSummary)
+async def resumo_dataset() -> EvaluatorDatasetSummary:
+    return await run_in_threadpool(executar_resumo_dataset)
+
+
 @router.post("/train", response_model=TrainResponse)
 async def treinar(payload: TrainRequest) -> TrainResponse:
     return await run_in_threadpool(executar_treino, payload)
@@ -309,17 +540,20 @@ async def treinar(payload: TrainRequest) -> TrainResponse:
     description=(
         "Monta o dataset do Avaliador a partir dos pares imagem+label em "
         "`DataScrapper/images_auto_annotate_labels/<data>`. "
-        "Recebe opcionalmente `data` no formato `YYYY-MM-DD`; se não for enviada, "
-        "usa a data de hoje no fuso UTC-3. Cada imagem precisa ter um `.txt` com "
+        "Recebe opcionalmente `data` com o nome da pasta (por exemplo, "
+        "`dataset-projeto`); se não for enviada, usa a data de hoje no fuso UTC-3. "
+        "Cada imagem precisa ter um `.txt` com "
         "o mesmo nome base, por exemplo `foto.jpg` e `foto.txt`. "
         "Após validar os pares, embaralha com seed fixa `42` e copia 70% para "
         "`Avaliador/images/train` + `Avaliador/labels/train`, 20% para "
         "`Avaliador/images/val` + `Avaliador/labels/val`, e 10% para "
         "`Avaliador/test/images` + `Avaliador/test/labels`. "
         "Antes da cópia, limpa das pastas de destino os arquivos antigos de "
-        "imagem e label correspondentes. Retorna a data usada, a pasta de "
+        "imagem e label correspondentes e os caches YOLO. Imagens cujo conteúdo "
+        "é AVIF são convertidas para JPEG mantendo dimensões e nome-base. "
+        "Retorna o nome de pasta usado, a pasta de "
         "origem, o total de pares e as contagens por split. Retorna 400 quando "
-        "existem imagens sem label correspondente e 404 quando a pasta da data "
+        "existem imagens sem label correspondente e 404 quando a pasta informada "
         "não existe."
     ),
 )

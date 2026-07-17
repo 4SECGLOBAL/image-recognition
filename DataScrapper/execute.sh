@@ -59,7 +59,9 @@ echo ""
 
 # Itera por cada termo no arquivo
 while IFS= read -r search_term || [ -n "$search_term" ]; do
+  search_term="$(printf '%s' "$search_term" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/[[:space:]]*;[[:space:]]*$//; s/[[:space:]]+$//')"
   [ -z "$search_term" ] && continue
+  [[ "$search_term" =~ ^# ]] && continue
   echo -e "\n🔍 Termo: \"$search_term\""
   images_before=$(count_images_in_dir)
   prefix="$(sanitize_prefix "$search_term")"
