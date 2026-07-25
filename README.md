@@ -36,6 +36,38 @@ Utilize os scripts de instalação:
 ./install_requirements.sh
 ```
 
+### Habilitar GPUs NVIDIA no Docker (Linux/Ubuntu)
+
+Para que contêineres Docker reconheçam as GPUs NVIDIA, a máquina deve possuir o driver NVIDIA e o Docker instalados e funcionando. Em seguida, instale e configure o NVIDIA Container Toolkit:
+
+```bash
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey \
+  | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+
+curl -fsSL https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list \
+  | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#' \
+  | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list > /dev/null
+
+sudo apt update
+sudo apt install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+```
+
+Em sistemas que não utilizam `systemd`, reinicie o Docker com:
+
+```bash
+sudo service docker restart
+```
+
+Valide o acesso à GPU dentro de um contêiner:
+
+```bash
+docker run --rm --gpus all nvidia/cuda:12.9.1-base-ubuntu24.04 nvidia-smi
+```
+
+Se o comando exibir as informações da GPU, o Docker está configurado corretamente.
+
 ## 🧩 Como Utilizar o Pipeline?
 
 ![](Pipeline.png)

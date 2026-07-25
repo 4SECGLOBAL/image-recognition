@@ -118,8 +118,8 @@ class AugmentTonalidadesRequest(BaseModel):
     @classmethod
     def validar_nome_pasta(cls, value: str) -> str:
         value = value.strip()
-        if value and not re.fullmatch(r"[A-Za-z0-9_-]+", value):
-            raise ValueError("Use apenas letras, numeros, hifen e underline.")
+        if value in {".", ".."} or "/" in value or "\\" in value or "\0" in value:
+            raise ValueError("Informe apenas o nome da pasta, sem caminho.")
         return value
 
 
@@ -314,7 +314,7 @@ def executar_augment_tonalidades(payload: AugmentTonalidadesRequest) -> AugmentT
     comando = [
         sys.executable,
         str(AUGMENT_TONALIDADES_SCRIPT_PATH),
-        payload.nome_pasta,
+        nome_pasta,
     ]
 
     processo = subprocess.Popen(
