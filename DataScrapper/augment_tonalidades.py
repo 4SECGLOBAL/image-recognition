@@ -1,5 +1,6 @@
 import argparse
 import cv2
+import hashlib
 import numpy as np
 import shutil
 from concurrent.futures import ProcessPoolExecutor
@@ -29,10 +30,23 @@ def resolver_nome_pasta(nome_pasta: str) -> str:
 EXTENSOES = {".jpg", ".jpeg", ".png", ".webp", ".avif"}
 SEM_FUNDO_NOME = "sem_fundo"
 ORIGINAL_NOME = "original"
+MAX_NOME_ARQUIVO_BYTES = 255
+MAX_SUFFIX_BYTES = max(len(extensao.encode("utf-8")) for extensao in EXTENSOES | {".txt"})
 
 
 def nome_arquivo_augmentado(stem: str, transformacao: str) -> str:
-    return f"{stem}_{transformacao}__aug"
+    sufixo_augmentation = f"_{transformacao}__aug"
+    nome_completo = f"{stem}{sufixo_augmentation}"
+    limite_stem = MAX_NOME_ARQUIVO_BYTES - MAX_SUFFIX_BYTES
+
+    if len(nome_completo.encode("utf-8")) <= limite_stem:
+        return nome_completo
+
+    hash_nome = hashlib.sha256(stem.encode("utf-8")).hexdigest()[:12]
+    sufixo_seguro = f"_{hash_nome}{sufixo_augmentation}"
+    limite_prefixo = limite_stem - len(sufixo_seguro.encode("utf-8"))
+    prefixo = stem.encode("utf-8")[:limite_prefixo].decode("utf-8", errors="ignore")
+    return f"{prefixo}{sufixo_seguro}"
 
 
 def escala_cinza(img):
