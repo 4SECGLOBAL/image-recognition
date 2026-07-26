@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import os
+import json
 import subprocess
 import sys
 import threading
@@ -130,6 +131,15 @@ class AugmentTonalidadesResponse(BaseModel):
     output_dir: str
     returncode: int
     imagens_resultantes: int
+    imagens_encontradas: int = 0
+    imagens_validas: int = 0
+    imagens_invalidas: int = 0
+    labels_faltantes: int = 0
+    originais_copiadas: int = 0
+    transformadas_geradas: int = 0
+    transformacoes_puladas: int = 0
+    erros: int = 0
+    duracao_segundos: float = 0
 
 
 router = APIRouter(prefix="/api/1/datascrapper", tags=["DataScrapper"])
@@ -311,6 +321,11 @@ def executar_augment_tonalidades(payload: AugmentTonalidadesRequest) -> AugmentT
     input_dir = AUTO_ANNOTATE_LABELS_DIR / nome_pasta
     output_dir = AUTO_ANNOTATE_LABELS_DIR / f"{nome_pasta}_aug"
 
+    if not input_dir.is_dir():
+        raise HTTPException(status_code=404, detail=f"Diretório de entrada não encontrado: {input_dir.relative_to(REPO_ROOT)}")
+    if contar_imagens_em(input_dir) == 0:
+        raise HTTPException(status_code=400, detail=f"Nenhuma imagem encontrada em: {input_dir.relative_to(REPO_ROOT)}")
+
     comando = [
         sys.executable,
         str(AUGMENT_TONALIDADES_SCRIPT_PATH),
@@ -326,10 +341,13 @@ def executar_augment_tonalidades(payload: AugmentTonalidadesRequest) -> AugmentT
         bufsize=1,
     )
 
+    linhas_stdout: list[str] = []
+
     def encaminhar_stdout() -> None:
         if processo.stdout is None:
             return
         for linha in processo.stdout:
+            linhas_stdout.append(linha)
             sys.stdout.write(linha)
             sys.stdout.flush()
 
@@ -351,6 +369,15 @@ def executar_augment_tonalidades(payload: AugmentTonalidadesRequest) -> AugmentT
 
     ajustar_dono_pelo_diretorio_pai(output_dir)
 
+    resumo = {}
+    for linha in reversed(linhas_stdout):
+        if linha.startswith("RESUMO_AUGMENTACAO="):
+            try:
+                resumo = json.loads(linha.removeprefix("RESUMO_AUGMENTACAO="))
+            except json.JSONDecodeError:
+                pass
+            break
+
     response = AugmentTonalidadesResponse(
         comando=comando,
         nome_pasta=nome_pasta,
@@ -358,6 +385,7 @@ def executar_augment_tonalidades(payload: AugmentTonalidadesRequest) -> AugmentT
         output_dir=str(output_dir.relative_to(REPO_ROOT)),
         returncode=returncode,
         imagens_resultantes=contar_imagens_em(output_dir),
+        **resumo,
     )
 
     if returncode != 0:
