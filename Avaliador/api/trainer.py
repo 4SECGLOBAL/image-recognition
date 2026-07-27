@@ -46,6 +46,37 @@ class TrainResponse(BaseModel):
     runs_dir: str
 
 
+class EvaluationRequest(BaseModel):
+    data: str = Field(default="Avaliador/data.yaml", description="Caminho do data.yaml do dataset.")
+    model: str = Field(default="best.pt", description="Caminho dos pesos .pt que serao avaliados.")
+    test_path: str = Field(
+        default="Avaliador/test",
+        description="Pasta do conjunto de teste, contendo labels e images_auto_annotate_labels.",
+    )
+    confidence: float | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+        description="Limiar de confianca opcional usado pelo YOLO.",
+    )
+    device: str | None = Field(default=None, description="Dispositivo opcional. Exemplos: 0, cpu.")
+    save_json: bool | None = Field(default=None, description="Se definido, controla a exportacao JSON do YOLO.")
+
+
+class EvaluationResponse(BaseModel):
+    comando: list[str]
+    data: str
+    model: str
+    test_path: str
+    returncode: int
+    validation_dir: str = Field(description="Pasta dos resultados relativa a raiz do projeto.")
+    validation_dir_absoluto: str = Field(description="Pasta dos resultados dentro do evaluator-api.")
+    artefatos_gerados: list[str] = Field(description="Arquivos criados ou atualizados nesta avaliacao.")
+    matriz_confusao: str | None = Field(description="Caminho da matriz de confusao absoluta.")
+    matriz_confusao_normalizada: str | None = Field(description="Caminho da matriz de confusao normalizada.")
+    assertivity_file: str | None = Field(description="Caminho do relatorio de assertividade por classe.")
+
+
 class DistributeRequest(BaseModel):
     data: str | None = Field(
         default=None,
@@ -148,6 +179,26 @@ def montar_comando(payload: TrainRequest) -> tuple[list[str], Path, Path]:
     ]
 
     return comando, data_path, model_path
+
+
+def montar_comando_avaliacao(
+    payload: EvaluationRequest,
+) -> tuple[list[str], Path, Path, Path]:
+    data_path = resolver_caminho(payload.data)
+    model_path = resolver_caminho(payload.model)
+    test_path = resolver_caminho(payload.test_path)
+
+    comando = [
+        "/bin/bash",
+        str(REPO_ROOT / "avaliacao.sh"),
+        str(data_path),
+        str(model_path),
+        str(test_path),
+        "" if payload.confidence is None else str(payload.confidence),
+        "" if payload.device is None else payload.device,
+        "" if payload.save_json is None else str(payload.save_json),
+    ]
+    return comando, data_path, model_path, test_path
 
 
 def validar_device(device: str) -> None:
@@ -523,6 +574,93 @@ def executar_treino(payload: TrainRequest) -> TrainResponse:
     return response
 
 
+def executar_avaliacao(payload: EvaluationRequest) -> EvaluationResponse:
+    comando, data_path, model_path, test_path = montar_comando_avaliacao(payload)
+    validation_dir = AVALIADOR_DIR / "validacao"
+
+    if not data_path.is_file():
+        raise HTTPException(status_code=400, detail=f"data.yaml nao encontrado: {data_path}")
+    if not model_path.is_file():
+        raise HTTPException(status_code=400, detail=f"Modelo nao encontrado: {model_path}")
+    if not test_path.is_dir():
+        raise HTTPException(status_code=400, detail=f"Pasta de teste nao encontrada: {test_path}")
+    if not (test_path / "labels").is_dir():
+        raise HTTPException(status_code=400, detail=f"Pasta de labels nao encontrada: {test_path / 'labels'}")
+    if payload.device:
+        validar_device(payload.device)
+
+    normalizar_data_yaml(data_path)
+    validation_dir.mkdir(parents=True, exist_ok=True)
+    artefatos_antes = {
+        path: (path.stat().st_mtime_ns, path.stat().st_size)
+        for path in validation_dir.rglob("*")
+        if path.is_file()
+    }
+
+    processo = subprocess.Popen(
+        comando,
+        cwd=REPO_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        bufsize=1,
+    )
+
+    def encaminhar_stdout() -> None:
+        if processo.stdout is None:
+            return
+        for linha in processo.stdout:
+            sys.stdout.write(linha)
+            sys.stdout.flush()
+
+    def encaminhar_stderr() -> None:
+        if processo.stderr is None:
+            return
+        for linha in processo.stderr:
+            sys.stderr.write(linha)
+            sys.stderr.flush()
+
+    stdout_thread = threading.Thread(target=encaminhar_stdout)
+    stderr_thread = threading.Thread(target=encaminhar_stderr)
+    stdout_thread.start()
+    stderr_thread.start()
+
+    returncode = processo.wait()
+    stdout_thread.join()
+    stderr_thread.join()
+
+    artefatos_depois = sorted(path for path in validation_dir.rglob("*") if path.is_file())
+    artefatos_gerados_paths = [
+        path
+        for path in artefatos_depois
+        if path not in artefatos_antes
+        or (path.stat().st_mtime_ns, path.stat().st_size) != artefatos_antes[path]
+    ]
+
+    def localizar_artefato(nome: str) -> str | None:
+        candidatos = [path for path in artefatos_gerados_paths if path.name == nome]
+        return caminho_relativo(candidatos[-1]) if candidatos else None
+
+    response = EvaluationResponse(
+        comando=comando,
+        data=caminho_relativo(data_path),
+        model=caminho_relativo(model_path),
+        test_path=caminho_relativo(test_path),
+        returncode=returncode,
+        validation_dir=caminho_relativo(validation_dir),
+        validation_dir_absoluto=str(validation_dir),
+        artefatos_gerados=[caminho_relativo(path) for path in artefatos_gerados_paths],
+        matriz_confusao=localizar_artefato("confusion_matrix.png"),
+        matriz_confusao_normalizada=localizar_artefato("confusion_matrix_normalized.png"),
+        assertivity_file=localizar_artefato("assertivity.txt"),
+    )
+
+    if returncode != 0:
+        raise HTTPException(status_code=500, detail=response.model_dump())
+
+    return response
+
+
 @router.get("/", response_model=EvaluatorDatasetSummary)
 async def resumo_dataset() -> EvaluatorDatasetSummary:
     return await run_in_threadpool(executar_resumo_dataset)
@@ -531,6 +669,15 @@ async def resumo_dataset() -> EvaluatorDatasetSummary:
 @router.post("/train", response_model=TrainResponse)
 async def treinar(payload: TrainRequest) -> TrainResponse:
     return await run_in_threadpool(executar_treino, payload)
+
+
+@router.post(
+    "/evaluate",
+    response_model=EvaluationResponse,
+    summary="Avalia o modelo YOLO no conjunto de teste",
+)
+async def avaliar(payload: EvaluationRequest) -> EvaluationResponse:
+    return await run_in_threadpool(executar_avaliacao, payload)
 
 
 @router.post(

@@ -110,6 +110,32 @@ Exemplo de payload:
 O endpoint cria `DataScrapper/listas_termos/Classes_e_contextos_<datahoje>.txt`
 e retorna o conteudo gerado no campo `conteudo`.
 
+### API para augmentation de tonalidades
+
+```text
+POST http://localhost:8001/api/1/datascrapper/augment-tonalidades
+```
+
+O endpoint gera as seguintes transformacoes:
+
+1. `cinza`
+2. `amarelado`
+3. `azulado`
+4. `esverdeada`
+5. `infravermelho`
+6. `claro`
+7. `escuro`
+8. `muito_escuro`
+9. `contraste_alto`
+10. `contraste_baixo`
+11. `desfocado`
+12. `compressao_jpeg`
+13. `cftv_noite`
+14. `rot90`
+15. `rot180`
+16. `rot270`
+17. `espelhada`
+
 ### Termo de busca único
 
 É possível realizar uma busca de um único termo, utilizando uma url ou termo de busca, com regulagem de número de imagens limite para fazer download:

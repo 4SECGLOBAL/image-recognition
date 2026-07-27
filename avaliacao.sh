@@ -38,7 +38,7 @@ fi
 
 echo -e "\n🔍 => VALIDAÇÃO YOLO NO CONJUNTO DE TESTE"
 # Cria o comando de validação do YOLO
-yolo_cmd="yolo detect val data=$data_yaml model=$model_path plots=True project=Avaliador/validacao"
+yolo_cmd="yolo detect val data=$data_yaml model=$model_path split=test plots=True project=Avaliador/validacao"
 [ -n "$confidence" ] && yolo_cmd+=" conf=$confidence"
 [ -n "$device" ] && yolo_cmd+=" device=$device"
 [ -n "$save_json" ] && yolo_cmd+=" save_json=$save_json"

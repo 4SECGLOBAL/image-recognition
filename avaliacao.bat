@@ -35,7 +35,7 @@ if errorlevel 1 (
 
 echo.
 echo 🔍 => VALIDAÇÃO YOLO NO CONJUNTO DE TESTE
-set "yolo_cmd=yolo detect val data=%data_yaml% model=%model_path% plots=True project=Avaliador\validacao"
+set "yolo_cmd=yolo detect val data=%data_yaml% model=%model_path% split=test plots=True project=Avaliador\validacao"
 
 if not "%confidence%"=="" set "yolo_cmd=!yolo_cmd! conf=%confidence%"
 if not "%device%"=="" set "yolo_cmd=!yolo_cmd! device=%device%"
