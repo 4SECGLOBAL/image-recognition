@@ -1,7 +1,8 @@
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
 
@@ -17,16 +18,20 @@ COPY DataScrapper/api/requirements.txt /tmp/api-requirements.txt
 COPY DataScrapper/google-images-download/requirements.txt /tmp/scrapper-requirements.txt
 COPY Limpeza/requirements.txt /tmp/limpeza-requirements.txt
 
-RUN python -m venv /app/env_scrapper \
-    && /app/env_scrapper/bin/pip install --upgrade pip \
-    && /app/env_scrapper/bin/pip install -r /tmp/scrapper-requirements.txt \
-    && python -m venv /app/env_limpeza \
-    && /app/env_limpeza/bin/pip install --upgrade pip \
-    && /app/env_limpeza/bin/pip install -r /tmp/limpeza-requirements.txt \
-    && pip install --upgrade pip \
-    && pip install -r /tmp/api-requirements.txt
+RUN pip install --upgrade pip \
+    && pip install \
+        -r /tmp/scrapper-requirements.txt \
+        -r /tmp/limpeza-requirements.txt \
+        -r /tmp/api-requirements.txt
 
-COPY . /app
+COPY DataScrapper /app/DataScrapper
+COPY Limpeza /app/Limpeza
+COPY coleta_e_limpeza.sh /app/coleta_e_limpeza.sh
+
+RUN chmod +x /app/coleta_e_limpeza.sh /app/DataScrapper/execute.sh \
+    && mkdir -p \
+        /app/DataScrapper/images \
+        /app/DataScrapper/images_auto_annotate_labels
 
 EXPOSE 8000
 

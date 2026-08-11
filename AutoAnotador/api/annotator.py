@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PYTHON_EXEC = REPO_ROOT / "env_model" / "bin" / "python"
+PYTHON_EXEC = Path(sys.executable)
 SCRIPT_PATH = REPO_ROOT / "AutoAnotador" / "annotator.py"
 
 

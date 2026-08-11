@@ -29,7 +29,11 @@ max_larg=${max_larg:-1920}
 max_alt=${max_alt:-1080}
 
 # Caminho para o interpretador Python
-PYTHON_EXEC="./env_limpeza/bin/python"
+if [ -x ./env_limpeza/bin/python ]; then
+  PYTHON_EXEC="./env_limpeza/bin/python"
+else
+  PYTHON_EXEC="python"
+fi
 
 # Verifica flags opcionais
 limpeza_flag="true"

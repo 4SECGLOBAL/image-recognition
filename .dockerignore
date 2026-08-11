@@ -3,8 +3,16 @@
 .codex
 env*
 runs
+datasets
 DataScrapper/images*
+DataScrapper/datasets
 Avaliador/images
 Avaliador/labels
+Avaliador/test
+Avaliador/validacao
 __pycache__
 *.pyc
+*.pt
+*.onnx
+*.engine
+*.zip

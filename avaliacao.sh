@@ -1,9 +1,10 @@
 #!/bin/bash
 
-PYTHON_ENV=env_model/bin/activate
-
-# Activate the virtual environment
-source $PYTHON_ENV
+# No desenvolvimento local, usa o venv quando ele existir. Dentro do container,
+# as dependências ficam no único Python global.
+if [ -f env_model/bin/activate ]; then
+  source env_model/bin/activate
+fi
 
 # Parse arguments from the shell script
 data_yaml=$1

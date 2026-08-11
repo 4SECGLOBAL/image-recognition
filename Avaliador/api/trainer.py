@@ -17,7 +17,7 @@ from starlette.concurrency import run_in_threadpool
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-YOLO_EXEC = REPO_ROOT / "env_model" / "bin" / "yolo"
+YOLO_EXEC = Path(shutil.which("yolo") or REPO_ROOT / "env_model" / "bin" / "yolo")
 AUTO_ANNOTATE_LABELS_DIR = REPO_ROOT / "DataScrapper" / "images_auto_annotate_labels"
 AVALIADOR_DIR = REPO_ROOT / "Avaliador"
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp", ".avif"}
@@ -211,7 +211,7 @@ def validar_device(device: str) -> None:
         "print(torch.cuda.device_count())"
     )
     resultado = subprocess.run(
-        [str(REPO_ROOT / "env_model" / "bin" / "python"), "-c", codigo],
+        [sys.executable, "-c", codigo],
         cwd=REPO_ROOT,
         text=True,
         stdout=subprocess.PIPE,

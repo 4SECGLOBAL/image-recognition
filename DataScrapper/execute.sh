@@ -28,7 +28,11 @@ filename="$termos_dir$1.txt"
 limit="$2"
 junta=""
 anonimo_flag=""
-PYTHON_EXEC="../env_scrapper/bin/python"
+if [ -x ../env_scrapper/bin/python ]; then
+  PYTHON_EXEC="../env_scrapper/bin/python"
+else
+  PYTHON_EXEC="python"
+fi
 
 for arg in "${@:3}"; do
   if [ "$arg" == "-join" ]; then

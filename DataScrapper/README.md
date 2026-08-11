@@ -34,6 +34,89 @@ pip install -r ./google-images-download/requirements.txt
 
 Os `requirements.txt` derivam da ferramenta [google-images-download](https://github.com/ultralytics/google-images-download/blob/main/requirements.txt).
 
+## Preparar o dataset COCO 2017
+
+O script `coco_class.py` baixa o COCO 2017 e organiza suas imagens e anotações
+de detecção no formato esperado pelo Ultralytics YOLO. Ele apenas prepara o
+dataset; o treinamento do modelo deve ser executado separadamente.
+
+Execute os comandos abaixo a partir da raiz do repositório. Além do ambiente
+virtual descrito acima, instale as dependências usadas pelo script:
+
+```bash
+pip install requests PyYAML tqdm ultralytics
+```
+
+O pacote `tqdm` é opcional e serve somente para exibir a barra de progresso. O
+pacote `ultralytics` é necessário para baixar o dataset completo; no modo
+limitado, o script usa diretamente `requests` e `PyYAML`.
+
+### Baixar o COCO completo
+
+```bash
+python DataScrapper/coco_class.py
+```
+
+Por padrão, o dataset é salvo em `DataScrapper/datasets/coco`, com os splits
+`train2017` e `val2017`. Esse modo verifica se há pelo menos 45 GiB livres e,
+ao final, valida a presença das 118.287 imagens de treino e 5.000 imagens de
+validação.
+
+Para incluir também o split público de teste, que não possui anotações
+públicas:
+
+```bash
+python DataScrapper/coco_class.py --include-test
+```
+
+Para salvar em outro disco ou diretório:
+
+```bash
+python DataScrapper/coco_class.py --dataset-dir /caminho/para/coco
+```
+
+### Baixar uma amostra limitada
+
+Use `--limit` para baixar somente uma amostra estratificada entre as 80 classes
+do COCO. O total informado é dividido em aproximadamente 90% para treino e 10%
+para validação:
+
+```bash
+python DataScrapper/coco_class.py --limit 20000
+```
+
+Quando `--dataset-dir` não é informado, esse modo salva os dados em
+`DataScrapper/datasets/coco20k`. O limite mínimo é de 80 imagens. O script baixa
+as anotações oficiais, seleciona as imagens, converte as bounding boxes para o
+formato YOLO e cria `coco20k.yaml`, que pode ser usado no treinamento:
+
+```bash
+yolo detect train data=DataScrapper/datasets/coco20k/coco20k.yaml model=yolo11n.pt
+```
+
+É possível controlar a repetibilidade da seleção e a quantidade de downloads
+simultâneos:
+
+```bash
+python DataScrapper/coco_class.py \
+  --limit 5000 \
+  --seed 123 \
+  --workers 16 \
+  --dataset-dir DataScrapper/datasets/coco5k
+```
+
+Os argumentos disponíveis são:
+
+- `--dataset-dir`: diretório de destino;
+- `--include-test`: inclui `test2017` no download completo (é ignorado no modo
+  limitado);
+- `--limit`: ativa o modo limitado e define o total de imagens;
+- `--seed`: semente da seleção estratificada (padrão: `42`);
+- `--workers`: número de downloads simultâneos no modo limitado (padrão: `8`).
+
+Downloads já concluídos são reaproveitados. Se uma transferência falhar,
+execute novamente o mesmo comando para tentar completar o dataset.
+
 ## Como utilizar
 
 Para utilizar o DataScrapper, deve-se seguir os seguintes passos:

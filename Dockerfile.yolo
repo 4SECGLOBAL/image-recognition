@@ -1,0 +1,65 @@
+FROM python:3.11-slim AS yolo-runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    YOLO_CONFIG_DIR=/tmp/Ultralytics \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libgl1 \
+        libglib2.0-0 \
+        libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Esta camada pesada é idêntica e, portanto, compartilhada fisicamente pelas
+# imagens annotator, evaluator e inference.
+RUN pip install --upgrade pip \
+    && pip install \
+        ultralytics \
+        fastapi \
+        "uvicorn[standard]" \
+        pyyaml \
+        "pillow>=11.3.0"
+
+
+FROM yolo-runtime AS annotator
+
+COPY AutoAnotador /app/AutoAnotador
+RUN mkdir -p /app/DataScrapper/images /app/DataScrapper/images_auto_annotate_labels
+
+EXPOSE 8000
+CMD ["uvicorn", "AutoAnotador.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+
+FROM yolo-runtime AS evaluator
+
+COPY Avaliador /app/Avaliador
+COPY avaliacao.sh /app/avaliacao.sh
+RUN chmod +x /app/Avaliador/api/entrypoint.sh /app/avaliacao.sh \
+    && mkdir -p \
+        /app/DataScrapper/images_auto_annotate_labels \
+        /app/Avaliador/images/train \
+        /app/Avaliador/images/val \
+        /app/Avaliador/labels/train \
+        /app/Avaliador/labels/val \
+        /app/Avaliador/test/images \
+        /app/Avaliador/test/images_auto_annotate_labels \
+        /app/Avaliador/test/labels \
+        /app/Avaliador/validacao \
+        /app/runs
+
+EXPOSE 8000
+ENTRYPOINT ["sh", "/app/Avaliador/api/entrypoint.sh"]
+CMD ["uvicorn", "Avaliador.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+
+FROM yolo-runtime AS inference
+
+COPY Inferencia /app/Inferencia
+RUN mkdir -p /app/Avaliador /app/runs
+
+EXPOSE 8000
+CMD ["uvicorn", "Inferencia.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

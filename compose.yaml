@@ -26,7 +26,8 @@ services:
   annotator-api: # 3° Estágio
     build:
       context: .
-      dockerfile: AutoAnotador/api/Dockerfile
+      dockerfile: Dockerfile.yolo
+      target: annotator
     image: image-recognition-annotator-api
     container_name: image-recognition-annotator-api
     ports:
@@ -51,7 +52,8 @@ services:
   evaluator-api:
     build:
       context: .
-      dockerfile: Avaliador/api/Dockerfile
+      dockerfile: Dockerfile.yolo
+      target: evaluator
     image: image-recognition-evaluator-api
     container_name: image-recognition-evaluator-api
     ports:
@@ -80,7 +82,8 @@ services:
   inference-api: # 5° Estágio
     build:
       context: .
-      dockerfile: Inferencia/api/Dockerfile
+      dockerfile: Dockerfile.yolo
+      target: inference
     image: image-recognition-inference-api
     container_name: image-recognition-inference-api
     ports:
