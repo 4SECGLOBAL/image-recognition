@@ -36,11 +36,17 @@ COCO_ANNOTATIONS_URL = (
 )
 
 
+def log(message: str) -> None:
+    """Exibe o andamento imediatamente, inclusive em logs sem buffer."""
+    print(f"[COCO] {message}", flush=True)
+
+
 def download_and_extract(url: str, destination: Path) -> None:
     """Baixa um ZIP sem exigir o pacote completo do Ultralytics."""
     destination.mkdir(parents=True, exist_ok=True)
     archive = destination / Path(url).name
     if not archive.exists() or archive.stat().st_size == 0:
+        log(f"Baixando anotações de {url} ...")
         temporary = archive.with_suffix(archive.suffix + ".part")
         with requests.get(url, stream=True, timeout=60) as response:
             response.raise_for_status()
@@ -49,8 +55,13 @@ def download_and_extract(url: str, destination: Path) -> None:
                     if chunk:
                         output.write(chunk)
         temporary.replace(archive)
+        log(f"Download das anotações concluído: {archive}")
+    else:
+        log(f"Arquivo de anotações já existe; reutilizando: {archive}")
+    log(f"Extraindo anotações em {destination} ...")
     with zipfile.ZipFile(archive) as zipped:
         zipped.extractall(destination)
+    log("Extração das anotações concluída.")
 
 
 def parse_args() -> argparse.Namespace:
@@ -90,8 +101,10 @@ def download_coco(dataset_dir: Path, include_test: bool = False) -> None:
 
     dataset_dir = dataset_dir.expanduser().resolve()
     dataset_dir.parent.mkdir(parents=True, exist_ok=True)
+    log(f"Iniciando preparação do COCO 2017 completo em {dataset_dir}")
 
     free_bytes = shutil.disk_usage(dataset_dir.parent).free
+    log(f"Espaço livre disponível: {free_bytes / 1024**3:.1f} GiB")
     if free_bytes < MIN_FREE_BYTES:
         raise RuntimeError(
             f"Espaço insuficiente em {dataset_dir.parent}: "
@@ -101,7 +114,9 @@ def download_coco(dataset_dir: Path, include_test: bool = False) -> None:
         )
 
     (dataset_dir / "images").mkdir(parents=True, exist_ok=True)
+    log("Baixando e extraindo os labels YOLO do COCO 2017 ...")
     download([f"{ASSETS_URL}/coco2017labels.zip"], dir=dataset_dir.parent, threads=1)
+    log("Labels preparados.")
 
     image_urls = [
         "http://images.cocodataset.org/zips/train2017.zip",
@@ -109,7 +124,10 @@ def download_coco(dataset_dir: Path, include_test: bool = False) -> None:
     ]
     if include_test:
         image_urls.append("http://images.cocodataset.org/zips/test2017.zip")
+    splits = "train2017, val2017" + (" e test2017" if include_test else "")
+    log(f"Baixando e extraindo imagens de {splits} ...")
     download(image_urls, dir=dataset_dir / "images", threads=len(image_urls))
+    log("Download das imagens concluído. Contando arquivos ...")
 
     train_images = count_files(dataset_dir / "images" / "train2017", "*.jpg")
     val_images = count_files(dataset_dir / "images" / "val2017", "*.jpg")
@@ -125,6 +143,7 @@ def download_coco(dataset_dir: Path, include_test: bool = False) -> None:
             "Download incompleto: eram esperadas 118.287 imagens de treino e "
             "5.000 imagens de validação. Execute novamente para completar."
         )
+    log("Validação concluída: dataset completo e pronto para uso.")
 
 
 def select_stratified_images(data: dict, limit: int, seed: int) -> list[int]:
@@ -229,24 +248,47 @@ def prepare_limited_coco(
 
     dataset_dir = dataset_dir.expanduser().resolve()
     dataset_dir.mkdir(parents=True, exist_ok=True)
+    log(
+        f"Iniciando preparação da amostra COCO com {limit:,} imagens em "
+        f"{dataset_dir} (seed={seed}, workers={workers})"
+    )
     download_and_extract(COCO_ANNOTATIONS_URL, dataset_dir)
 
     split_limits = {"train2017": limit - max(1, limit // 10), "val2017": max(1, limit // 10)}
+    log(
+        "Divisão planejada: "
+        f"{split_limits['train2017']:,} treino / "
+        f"{split_limits['val2017']:,} validação"
+    )
     summary: dict[str, int] = {}
 
     for split, split_limit in split_limits.items():
         json_path = dataset_dir / "annotations" / f"instances_{split}.json"
+        log(f"[{split}] Lendo anotações de {json_path} ...")
         with json_path.open("r", encoding="utf-8") as annotation_file:
             data = json.load(annotation_file)
 
+        log(f"[{split}] Selecionando {split_limit:,} imagens de forma estratificada ...")
         selected = set(select_stratified_images(data, split_limit, seed))
         selected_images = [image for image in data["images"] if image["id"] in selected]
         images_dir = dataset_dir / "images" / split
         labels_dir = dataset_dir / "labels" / split
         images_dir.mkdir(parents=True, exist_ok=True)
+        log(f"[{split}] Gerando {len(selected_images):,} arquivos de labels YOLO ...")
         write_yolo_labels(data, selected, labels_dir)
+        log(f"[{split}] Labels gerados em {labels_dir}")
 
         failures: list[str] = []
+        existing_images = sum(
+            1
+            for image in selected_images
+            if (images_dir / image["file_name"]).is_file()
+            and (images_dir / image["file_name"]).stat().st_size > 0
+        )
+        log(
+            f"[{split}] Baixando imagens com {workers} workers "
+            f"({existing_images:,} já existentes serão reutilizadas) ..."
+        )
         with ThreadPoolExecutor(max_workers=workers) as executor:
             futures = {
                 executor.submit(download_one_image, image, images_dir): image["file_name"]
@@ -266,6 +308,7 @@ def prepare_limited_coco(
                 "Execute novamente para tentar completar. Exemplos: " + ", ".join(failures[:5])
             )
         summary[split] = len(selected_images)
+        log(f"[{split}] Processamento concluído: {len(selected_images):,} imagens.")
 
     names = {
         index: category["name"]
@@ -278,15 +321,19 @@ def prepare_limited_coco(
         "nc": 80,
         "names": names,
     }
-    (dataset_dir / "coco20k.yaml").write_text(
+    yaml_path = dataset_dir / "coco20k.yaml"
+    log(f"Gerando configuração do dataset em {yaml_path} ...")
+    yaml_path.write_text(
         yaml.safe_dump(yaml_data, allow_unicode=True, sort_keys=False), encoding="utf-8"
     )
     print(f"\nCOCO limitado preparado em {dataset_dir}")
     print(f"Treino: {summary['train2017']:,} imagens")
     print(f"Validação: {summary['val2017']:,} imagens")
+    log("Amostra limitada pronta para uso.")
 
 if __name__ == "__main__":
     args = parse_args()
+    log("Argumentos recebidos; iniciando execução.")
     if args.limit is not None:
         limited_dir = args.dataset_dir
         if limited_dir == DEFAULT_DATASET_DIR:
