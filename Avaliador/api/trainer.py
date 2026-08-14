@@ -64,12 +64,15 @@ class EvaluationRequest(BaseModel):
         description="Pasta do conjunto de teste, contendo labels e images_auto_annotate_labels.",
     )
     confidence: float | None = Field(
-        default=None,
+        default=0.3,
         ge=0,
         le=1,
-        description="Limiar de confianca opcional usado pelo YOLO.",
+        description="Limiar de confiança usado na avaliação e na geração das predições.",
     )
-    device: str | None = Field(default=None, description="Dispositivo opcional. Exemplos: 0, cpu.")
+    device: str | None = Field(
+        default="0",
+        description="Dispositivo utilizado na avaliação. Use `0` para a primeira GPU ou `cpu` sem GPU.",
+    )
     save_json: bool | None = Field(default=None, description="Se definido, controla a exportacao JSON do YOLO.")
 
 
