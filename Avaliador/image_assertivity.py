@@ -115,3 +115,4 @@ if __name__ == "__main__":
         calculate_class_accuracies(args.gth_folder, args.prd_folder, args.yaml_path, args.check_fp, args.save)
     except Exception as e:
         print(f"Error: {e}")
+        raise SystemExit(1)

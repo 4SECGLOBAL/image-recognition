@@ -14,7 +14,7 @@ Exemplo de payload:
 ```json
 {
   "data": "Avaliador/data.yaml",
-  "model": "best.pt",
+  "model": "runs/detect/train-27/weights/best.pt",
   "test_path": "Avaliador/test",
   "confidence": 0.25,
   "device": "0",
@@ -26,6 +26,9 @@ Os campos `confidence`, `device` e `save_json` são opcionais. Os gráficos e a
 matriz de confusão produzidos pelo YOLO são armazenados em
 `Avaliador/validacao/`.
 
+O campo `model` também pode ser omitido. Nesse caso, a API localiza em tempo de
+execução o `weights/best.pt` do treinamento mais recente em `runs/detect`.
+
 A resposta informa:
 
 - `validation_dir`: caminho relativo `Avaliador/validacao`;
@@ -33,6 +36,7 @@ A resposta informa:
 - `artefatos_gerados`: todos os arquivos criados ou atualizados pela execução;
 - `matriz_confusao`: caminho de `confusion_matrix.png`;
 - `matriz_confusao_normalizada`: caminho de `confusion_matrix_normalized.png`;
+- `matriz_confusao_xlsx`: caminho de `confusion_matrix.xlsx`, com os valores absolutos;
 - `assertivity_file`: caminho do relatório `assertivity.txt`.
 Analisa uma métrica de "Assertividade", verificando se uma classe que possui ao menos uma instância em uma imagem é tem a predição de ao menos uma instância pelo modelo. Possibilita análise de falsos positivos e o salvamento dos resultados.
 

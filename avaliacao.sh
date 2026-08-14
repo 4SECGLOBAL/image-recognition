@@ -25,9 +25,12 @@ echo "📏 Imagens de validação: $test_path"
 
 echo -e "\n✍️ => AUTO-ANOTAÇÃO"
 
-# python AutoAnotador/annotator.py $test_path/images/ \
-#   --det_model $model_path \
-#   --draw
+annotator_cmd=(python AutoAnotador/annotator.py "$test_path/images/" \
+  --det_model "$model_path" \
+  --output_dir "$test_path/images_auto_annotate_labels")
+[ -n "$confidence" ] && annotator_cmd+=(--confidence "$confidence")
+[ -n "$device" ] && annotator_cmd+=(--device "$device")
+"${annotator_cmd[@]}"
 
 # Verifica sucesso da execução
 if [ $? -ne 0 ]; then
@@ -38,21 +41,26 @@ else
 fi
 
 echo -e "\n🔍 => VALIDAÇÃO YOLO NO CONJUNTO DE TESTE"
-# Cria o comando de validação do YOLO
-yolo_cmd="yolo detect val data=$data_yaml model=$model_path split=test plots=True project=Avaliador/validacao"
-[ -n "$confidence" ] && yolo_cmd+=" conf=$confidence"
-[ -n "$device" ] && yolo_cmd+=" device=$device"
-[ -n "$save_json" ] && yolo_cmd+=" save_json=$save_json"
+# Cria o comando de validação do YOLO. O caminho absoluto evita que o
+# Ultralytics redirecione os resultados para runs/detect.
+validation_project="$(pwd)/Avaliador/validacao"
+validation_cmd=(python Avaliador/yolo_validation.py \
+  --data "$data_yaml" \
+  --model "$model_path" \
+  --project "$validation_project")
+[ -n "$confidence" ] && validation_cmd+=(--confidence "$confidence")
+[ -n "$device" ] && validation_cmd+=(--device "$device")
+[ "$save_json" = "True" ] || [ "$save_json" = "true" ] && validation_cmd+=(--save-json)
 
 # Roda validação 
-eval $yolo_cmd
+"${validation_cmd[@]}"
 
 # Verifica sucesso da execução
 if [ $? -ne 0 ]; then
     echo -e "\n❌ Erro ao executar a validação YOLO.\n"
     exit 1
 else
-    echo "✅ Validação concluída com sucesso e salva em : $test_path../runs/detect/val"
+    echo "✅ Validação concluída com sucesso e salva em: $validation_project"
 fi
 
 echo -e "\n🔍 => VALIDAÇÃO DE ASSERTIVIDADE NO CONJUNTO DE TESTE"

@@ -22,6 +22,7 @@ RUN pip install --upgrade pip \
         fastapi \
         "uvicorn[standard]" \
         pyyaml \
+        openpyxl \
         "pillow>=11.3.0"
 
 
@@ -37,6 +38,7 @@ CMD ["uvicorn", "AutoAnotador.api.main:app", "--host", "0.0.0.0", "--port", "800
 FROM yolo-runtime AS evaluator
 
 COPY Avaliador /app/Avaliador
+COPY AutoAnotador /app/AutoAnotador
 COPY avaliacao.sh /app/avaliacao.sh
 RUN chmod +x /app/Avaliador/api/entrypoint.sh /app/avaliacao.sh \
     && mkdir -p \

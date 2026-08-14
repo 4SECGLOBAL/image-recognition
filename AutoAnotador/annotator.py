@@ -8,7 +8,15 @@ import cv2
 import argparse
 import numpy as np
 
-def auto_annotate(data, det_model="yolov8x.pt", device="cpu", output_dir=None, desired_class_id=None, draw=False):
+def auto_annotate(
+    data,
+    det_model="yolov8x.pt",
+    device="cpu",
+    output_dir=None,
+    desired_class_id=None,
+    draw=False,
+    confidence=None,
+):
     """
     Anota automaticamente imagens usando um modelo de detecção em imagens YOLO.
 
@@ -42,11 +50,18 @@ def auto_annotate(data, det_model="yolov8x.pt", device="cpu", output_dir=None, d
             image_paths = [line.strip() for line in file.readlines()]
         data = image_paths
     Path(output_dir).mkdir(exist_ok=True, parents=True)
+    # Evita que labels de uma avaliacao anterior sejam confundidos com novas
+    # predicoes quando uma imagem deixa de ter deteccoes.
+    for old_label in Path(output_dir).glob("*.txt"):
+        old_label.unlink()
 
     print("🔍 Iniciando Inferência YOLO para detecção de objetos nas imagens...")
 
     # Faz a inferencia em todas as imagens
-    det_results = det_model(data, device=device)
+    predict_args = {"device": device}
+    if confidence is not None:
+        predict_args["conf"] = confidence
+    det_results = det_model(data, **predict_args)
 
     # Exibe resultados detalhados por imagem
     print("\n🖼️  Resultados por Imagem\n")
@@ -123,6 +138,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, default=None, help="Diretório para salvar os resultados anotados.")
     parser.add_argument("--desired_class_id", type=int, default=None, help="ID da classe para anotar. Anota todas as classes se não especificado.")
     parser.add_argument("--draw", action="store_true", help="Desenha as bounding boxes nas imagens originais e as salva.")
+    parser.add_argument("--confidence", type=float, default=None, help="Limiar de confianca opcional.")
 
     args = parser.parse_args()
 
@@ -133,4 +149,5 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
         desired_class_id=args.desired_class_id,
         draw=args.draw,
+        confidence=args.confidence,
     )

@@ -39,16 +39,26 @@ class TrainRequest(BaseModel):
 
 
 class TrainResponse(BaseModel):
-    comando: list[str]
-    data: str
-    model: str
-    returncode: int
-    runs_dir: str
+    comando: list[str] = Field(description="Comando YOLO executado.")
+    data: str = Field(description="Dataset utilizado no treinamento.")
+    model: str = Field(description="Modelo base utilizado para iniciar o treinamento.")
+    returncode: int = Field(description="Código de saída do processo; zero indica sucesso.")
+    runs_dir: str = Field(description="Pasta raiz dos treinamentos YOLO.")
+    run_dir: str = Field(description="Pasta criada especificamente para este treinamento.")
+    best_model: str = Field(description="Pesos da época com melhor resultado no conjunto de validação.")
+    last_model: str = Field(description="Pesos da última época executada.")
 
 
 class EvaluationRequest(BaseModel):
     data: str = Field(default="Avaliador/data.yaml", description="Caminho do data.yaml do dataset.")
-    model: str = Field(default="best.pt", description="Caminho dos pesos .pt que serao avaliados.")
+    model: str | None = Field(
+        default=None,
+        description=(
+            "Caminho dos pesos .pt que serao avaliados. Quando omitido, usa automaticamente "
+            "o best.pt do treinamento mais recente em runs/detect."
+        ),
+        examples=["runs/detect/train-27/weights/best.pt"],
+    )
     test_path: str = Field(
         default="Avaliador/test",
         description="Pasta do conjunto de teste, contendo labels e images_auto_annotate_labels.",
@@ -74,6 +84,7 @@ class EvaluationResponse(BaseModel):
     artefatos_gerados: list[str] = Field(description="Arquivos criados ou atualizados nesta avaliacao.")
     matriz_confusao: str | None = Field(description="Caminho da matriz de confusao absoluta.")
     matriz_confusao_normalizada: str | None = Field(description="Caminho da matriz de confusao normalizada.")
+    matriz_confusao_xlsx: str | None = Field(description="Caminho da planilha com os valores da matriz de confusao.")
     assertivity_file: str | None = Field(description="Caminho do relatorio de assertividade por classe.")
 
 
@@ -146,6 +157,27 @@ def resolver_caminho(caminho: str) -> Path:
     return REPO_ROOT / path
 
 
+def treinamentos_com_best() -> list[Path]:
+    runs_dir = REPO_ROOT / "runs" / "detect"
+    if not runs_dir.is_dir():
+        return []
+    return sorted(
+        (path.parent.parent for path in runs_dir.glob("*/weights/best.pt") if path.is_file()),
+        key=lambda run_dir: (run_dir / "weights" / "best.pt").stat().st_mtime_ns,
+        reverse=True,
+    )
+
+
+def ultimo_treinamento() -> Path:
+    treinamentos = treinamentos_com_best()
+    if not treinamentos:
+        raise HTTPException(
+            status_code=400,
+            detail="Nenhum treinamento com weights/best.pt foi encontrado em runs/detect.",
+        )
+    return treinamentos[0]
+
+
 def caminho_relativo(path: Path) -> str:
     return str(path.relative_to(REPO_ROOT)) if path.is_relative_to(REPO_ROOT) else str(path)
 
@@ -185,7 +217,7 @@ def montar_comando_avaliacao(
     payload: EvaluationRequest,
 ) -> tuple[list[str], Path, Path, Path]:
     data_path = resolver_caminho(payload.data)
-    model_path = resolver_caminho(payload.model)
+    model_path = resolver_caminho(payload.model) if payload.model else ultimo_treinamento() / "weights" / "best.pt"
     test_path = resolver_caminho(payload.test_path)
 
     comando = [
@@ -527,73 +559,9 @@ def executar_treino(payload: TrainRequest) -> TrainResponse:
     validar_device(payload.device)
 
     normalizar_data_yaml(data_path)
-
-    processo = subprocess.Popen(
-        comando,
-        cwd=REPO_ROOT,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        bufsize=1,
-    )
-
-    def encaminhar_stdout() -> None:
-        if processo.stdout is None:
-            return
-        for linha in processo.stdout:
-            sys.stdout.write(linha)
-            sys.stdout.flush()
-
-    def encaminhar_stderr() -> None:
-        if processo.stderr is None:
-            return
-        for linha in processo.stderr:
-            sys.stderr.write(linha)
-            sys.stderr.flush()
-
-    stdout_thread = threading.Thread(target=encaminhar_stdout)
-    stderr_thread = threading.Thread(target=encaminhar_stderr)
-    stdout_thread.start()
-    stderr_thread.start()
-
-    returncode = processo.wait()
-    stdout_thread.join()
-    stderr_thread.join()
-
-    response = TrainResponse(
-        comando=comando,
-        data=caminho_relativo(data_path),
-        model=caminho_relativo(model_path),
-        returncode=returncode,
-        runs_dir="runs/detect",
-    )
-
-    if returncode != 0:
-        raise HTTPException(status_code=500, detail=response.model_dump())
-
-    return response
-
-
-def executar_avaliacao(payload: EvaluationRequest) -> EvaluationResponse:
-    comando, data_path, model_path, test_path = montar_comando_avaliacao(payload)
-    validation_dir = AVALIADOR_DIR / "validacao"
-
-    if not data_path.is_file():
-        raise HTTPException(status_code=400, detail=f"data.yaml nao encontrado: {data_path}")
-    if not model_path.is_file():
-        raise HTTPException(status_code=400, detail=f"Modelo nao encontrado: {model_path}")
-    if not test_path.is_dir():
-        raise HTTPException(status_code=400, detail=f"Pasta de teste nao encontrada: {test_path}")
-    if not (test_path / "labels").is_dir():
-        raise HTTPException(status_code=400, detail=f"Pasta de labels nao encontrada: {test_path / 'labels'}")
-    if payload.device:
-        validar_device(payload.device)
-
-    normalizar_data_yaml(data_path)
-    validation_dir.mkdir(parents=True, exist_ok=True)
-    artefatos_antes = {
+    best_antes = {
         path: (path.stat().st_mtime_ns, path.stat().st_size)
-        for path in validation_dir.rglob("*")
+        for path in (REPO_ROOT / "runs" / "detect").glob("*/weights/best.pt")
         if path.is_file()
     }
 
@@ -629,7 +597,119 @@ def executar_avaliacao(payload: EvaluationRequest) -> EvaluationResponse:
     stdout_thread.join()
     stderr_thread.join()
 
-    artefatos_depois = sorted(path for path in validation_dir.rglob("*") if path.is_file())
+    if returncode != 0:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "comando": comando,
+                "data": caminho_relativo(data_path),
+                "model": caminho_relativo(model_path),
+                "returncode": returncode,
+                "runs_dir": "runs/detect",
+            },
+        )
+
+    best_depois = [
+        path
+        for path in (REPO_ROOT / "runs" / "detect").glob("*/weights/best.pt")
+        if path.is_file()
+        and (
+            path not in best_antes
+            or (path.stat().st_mtime_ns, path.stat().st_size) != best_antes[path]
+        )
+    ]
+    if not best_depois:
+        raise HTTPException(
+            status_code=500,
+            detail="Treinamento concluido, mas nenhum novo weights/best.pt foi encontrado.",
+        )
+
+    best_path = max(best_depois, key=lambda path: path.stat().st_mtime_ns)
+    run_dir = best_path.parent.parent
+    last_path = run_dir / "weights" / "last.pt"
+    if not last_path.is_file():
+        raise HTTPException(status_code=500, detail=f"last_model nao encontrado: {last_path}")
+
+    response = TrainResponse(
+        comando=comando,
+        data=caminho_relativo(data_path),
+        model=caminho_relativo(model_path),
+        returncode=returncode,
+        runs_dir="runs/detect",
+        run_dir=caminho_relativo(run_dir),
+        best_model=caminho_relativo(best_path),
+        last_model=caminho_relativo(last_path),
+    )
+
+    return response
+
+
+def executar_avaliacao(payload: EvaluationRequest) -> EvaluationResponse:
+    comando, data_path, model_path, test_path = montar_comando_avaliacao(payload)
+    validation_dir = AVALIADOR_DIR / "validacao"
+
+    if not data_path.is_file():
+        raise HTTPException(status_code=400, detail=f"data.yaml nao encontrado: {data_path}")
+    if not model_path.is_file():
+        raise HTTPException(status_code=400, detail=f"Modelo nao encontrado: {model_path}")
+    if not test_path.is_dir():
+        raise HTTPException(status_code=400, detail=f"Pasta de teste nao encontrada: {test_path}")
+    if not (test_path / "labels").is_dir():
+        raise HTTPException(status_code=400, detail=f"Pasta de labels nao encontrada: {test_path / 'labels'}")
+    if payload.device:
+        validar_device(payload.device)
+
+    normalizar_data_yaml(data_path)
+    validation_dir.mkdir(parents=True, exist_ok=True)
+    predictions_dir = test_path / "images_auto_annotate_labels"
+    monitored_dirs = (validation_dir, predictions_dir)
+    artefatos_antes = {
+        path: (path.stat().st_mtime_ns, path.stat().st_size)
+        for monitored_dir in monitored_dirs
+        if monitored_dir.exists()
+        for path in monitored_dir.rglob("*")
+        if path.is_file()
+    }
+
+    processo = subprocess.Popen(
+        comando,
+        cwd=REPO_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        bufsize=1,
+    )
+
+    def encaminhar_stdout() -> None:
+        if processo.stdout is None:
+            return
+        for linha in processo.stdout:
+            sys.stdout.write(linha)
+            sys.stdout.flush()
+
+    def encaminhar_stderr() -> None:
+        if processo.stderr is None:
+            return
+        for linha in processo.stderr:
+            sys.stderr.write(linha)
+            sys.stderr.flush()
+
+    stdout_thread = threading.Thread(target=encaminhar_stdout)
+    stderr_thread = threading.Thread(target=encaminhar_stderr)
+    stdout_thread.start()
+    stderr_thread.start()
+
+    returncode = processo.wait()
+    stdout_thread.join()
+    stderr_thread.join()
+
+    artefatos_depois = sorted(
+        path
+        for monitored_dir in monitored_dirs
+        if monitored_dir.exists()
+        for path in monitored_dir.rglob("*")
+        if path.is_file()
+    )
     artefatos_gerados_paths = [
         path
         for path in artefatos_depois
@@ -652,6 +732,7 @@ def executar_avaliacao(payload: EvaluationRequest) -> EvaluationResponse:
         artefatos_gerados=[caminho_relativo(path) for path in artefatos_gerados_paths],
         matriz_confusao=localizar_artefato("confusion_matrix.png"),
         matriz_confusao_normalizada=localizar_artefato("confusion_matrix_normalized.png"),
+        matriz_confusao_xlsx=localizar_artefato("confusion_matrix.xlsx"),
         assertivity_file=localizar_artefato("assertivity.txt"),
     )
 
@@ -666,7 +747,18 @@ async def resumo_dataset() -> EvaluatorDatasetSummary:
     return await run_in_threadpool(executar_resumo_dataset)
 
 
-@router.post("/train", response_model=TrainResponse)
+@router.post(
+    "/train",
+    response_model=TrainResponse,
+    summary="Treina um modelo YOLO",
+    description=(
+        "Treina o modelo usando os conjuntos `train` e `val` definidos no `data.yaml`. "
+        "A requisição permanece aberta até o término do treinamento. Os artefatos são "
+        "salvos em `runs/detect/<treinamento>` e a resposta retorna os caminhos exatos "
+        "de `best.pt` e `last.pt`. Use o valor de `best_model` no endpoint `/evaluate`."
+    ),
+    response_description="Caminhos e informações do treinamento concluído.",
+)
 async def treinar(payload: TrainRequest) -> TrainResponse:
     return await run_in_threadpool(executar_treino, payload)
 
@@ -674,7 +766,17 @@ async def treinar(payload: TrainRequest) -> TrainResponse:
 @router.post(
     "/evaluate",
     response_model=EvaluationResponse,
-    summary="Avalia o modelo YOLO no conjunto de teste",
+    summary="Avalia no conjunto de teste",
+    description=(
+        "Avalia um modelo já treinado usando exclusivamente o conjunto `test`. "
+        "Informe em `model` o `best_model` retornado por `/train`; se o campo for "
+        "omitido ou `null`, será usado o `best.pt` do treinamento concluído mais recente. "
+        "A operação gera predições, métricas e gráficos YOLO, matrizes de confusão em PNG "
+        "e XLSX e o relatório `assertivity.txt`. Os resultados ficam em "
+        "`Avaliador/validacao` e são listados em `artefatos_gerados`. A requisição "
+        "permanece aberta até o fim da avaliação."
+    ),
+    response_description="Modelo utilizado e artefatos criados ou atualizados pela avaliação.",
 )
 async def avaliar(payload: EvaluationRequest) -> EvaluationResponse:
     return await run_in_threadpool(executar_avaliacao, payload)
